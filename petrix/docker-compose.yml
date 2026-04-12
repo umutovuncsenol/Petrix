@@ -1,0 +1,22 @@
+services:
+  db:
+    image: postgres:16
+    container_name: vetclinic_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: vetclinic
+      POSTGRES_USER: vetuser
+      POSTGRES_PASSWORD: vetpass
+    ports:
+      - "5432:5432"
+    volumes:
+      - vetclinic_data:/var/lib/postgresql/data
+      - ./db/schema.sql:/docker-entrypoint-initdb.d/schema.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U vetuser -d vetclinic"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  vetclinic_data:
