@@ -11,8 +11,9 @@ api.interceptors.request.use((config) => {
 
 // ── Auth ──────────────────────────────────────────────────
 export const authAPI = {
-  login:    (data) => api.post('/auth/login', data),
-  register: (data) => api.post('/auth/register', data),
+  login:       (data) => api.post('/auth/login', data),
+  register:    (data) => api.post('/auth/register', data),
+  registerVet: (data) => api.post('/auth/register/vet', data),
 }
 
 // ── Branches ──────────────────────────────────────────────
@@ -72,9 +73,12 @@ export const membershipAPI = {
 
 // ── Inventory ─────────────────────────────────────────────
 export const inventoryAPI = {
-  getMedications: ()         => api.get('/inventory/medications'),
-  getStock:       (branchId) => api.get(`/inventory/branch/${branchId}`),
-  getLowStock:    (branchId) => api.get(`/inventory/branch/${branchId}/low-stock`),
+  getMedications: ()               => api.get('/inventory/medications'),
+  getStock:       (branchId)       => api.get(`/inventory/branch/${branchId}`),
+  getLowStock:    (branchId)       => api.get(`/inventory/branch/${branchId}/low-stock`),
+  logWaste:       (data)           => api.post('/inventory/waste', data),
+  getWasteLogs:   (branchId)       => api.get(`/inventory/waste/${branchId}`),
+  getReport:      (branchId)       => api.get(`/inventory/reports/branch/${branchId}`),
 }
 
 export default api

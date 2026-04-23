@@ -1,0 +1,20 @@
+# Frontend
+node_modules/
+dist/
+.env
+.env.local
+
+# Backend
+petrix/backend/target/
+*.class
+*.jar
+*.war
+
+# IDE
+.idea/
+*.iml
+.vscode/
+.DS_Store
+
+# Docker
+*.log

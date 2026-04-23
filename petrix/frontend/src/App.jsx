@@ -9,6 +9,8 @@ import PetProfilePage from './pages/PetProfilePage'
 import VetDashboardPage from './pages/VetDashboardPage'
 import MembershipPage from './pages/MembershipPage'
 import AddPetPage from './pages/AddPetPage'
+import WasteLogPage from './pages/WasteLogPage'
+import ReportsPage from './pages/ReportsPage'
 
 function ProtectedRoute({ children, allowedRole }) {
   const { user } = useAuth()
@@ -50,6 +52,12 @@ function AppRoutes() {
         {/* Vet routes */}
         <Route path="/vet-dashboard" element={
           <ProtectedRoute allowedRole="VET"><VetDashboardPage /></ProtectedRoute>
+        } />
+        <Route path="/waste-log" element={
+          <ProtectedRoute allowedRole="VET"><WasteLogPage /></ProtectedRoute>
+        } />
+        <Route path="/reports" element={
+          <ProtectedRoute allowedRole="VET"><ReportsPage /></ProtectedRoute>
         } />
 
         <Route path="*" element={<Navigate to="/" replace />} />

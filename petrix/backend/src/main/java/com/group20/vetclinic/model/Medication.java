@@ -14,4 +14,5 @@ public class Medication {
     private Integer quantity;
     private Integer reorderLevel;
     private Boolean lowStockFlagged;
+    private String expiryDate;
 }

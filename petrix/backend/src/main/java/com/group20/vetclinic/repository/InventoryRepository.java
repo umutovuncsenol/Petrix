@@ -26,6 +26,7 @@ public class InventoryRepository {
         try { m.setQuantity(rs.getInt("quantity")); } catch (Exception ignored) {}
         try { m.setReorderLevel(rs.getInt("reorder_level")); } catch (Exception ignored) {}
         try { m.setLowStockFlagged(rs.getBoolean("low_stock_flagged")); } catch (Exception ignored) {}
+        try { m.setExpiryDate(rs.getString("expiry_date")); } catch (Exception ignored) {}
         return m;
     };
 

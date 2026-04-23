@@ -3,6 +3,7 @@ package com.group20.vetclinic.service;
 import com.group20.vetclinic.dto.AuthResponse;
 import com.group20.vetclinic.dto.LoginRequest;
 import com.group20.vetclinic.dto.RegisterRequest;
+import com.group20.vetclinic.dto.RegisterVetRequest;
 import com.group20.vetclinic.model.Owner;
 import com.group20.vetclinic.model.Veterinarian;
 import com.group20.vetclinic.repository.OwnerRepository;
@@ -31,6 +32,16 @@ public class AuthService {
         int id = ownerRepo.create(req.getFullName(), req.getUsername(), hash, req.getEmail(), req.getPhone());
         String token = jwtUtil.generateToken(req.getUsername(), "OWNER", id);
         return new AuthResponse(token, "OWNER", id, req.getUsername(), req.getFullName());
+    }
+
+    public AuthResponse registerVet(RegisterVetRequest req) {
+        if (vetRepo.existsByUsername(req.getUsername()))
+            throw new IllegalArgumentException("Username already taken");
+
+        String hash = passwordEncoder.encode(req.getPassword());
+        int id = vetRepo.create(req.getFullName(), req.getUsername(), hash, req.getBranchId(), req.getSpecialization(), req.getSpeciesExpertise());
+        String token = jwtUtil.generateToken(req.getUsername(), "VET", id);
+        return new AuthResponse(token, "VET", id, req.getUsername(), req.getFullName());
     }
 
     public AuthResponse login(LoginRequest req) {

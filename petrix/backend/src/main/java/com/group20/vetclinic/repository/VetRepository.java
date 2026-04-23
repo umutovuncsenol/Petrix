@@ -78,6 +78,18 @@ public class VetRepository {
         return jdbc.query(sql, rowMapper, username).stream().findFirst();
     }
 
+    public boolean existsByUsername(String username) {
+        Integer count = jdbc.queryForObject("SELECT COUNT(*) FROM VETERINARIAN WHERE username = ?", Integer.class, username);
+        return count != null && count > 0;
+    }
+
+    public int create(String fullName, String username, String passwordHash, int branchId, String specialization, String speciesExpertise) {
+        return jdbc.queryForObject("""
+            INSERT INTO VETERINARIAN (full_name, username, password_hash, branch_id, specialization, species_expertise)
+            VALUES (?, ?, ?, ?, ?, ?) RETURNING vet_id
+            """, Integer.class, fullName, username, passwordHash, branchId, specialization, speciesExpertise);
+    }
+
     public Optional<String> findPasswordHash(String username) {
         return jdbc.query("SELECT password_hash FROM VETERINARIAN WHERE username = ?",
                           (rs, i) -> rs.getString("password_hash"), username)
