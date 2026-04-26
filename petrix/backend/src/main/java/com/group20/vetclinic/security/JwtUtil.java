@@ -10,6 +10,7 @@ import java.security.Key;
 import java.util.Base64;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 @Component
@@ -27,8 +28,15 @@ public class JwtUtil {
     }
 
     public String generateToken(String username, String role, int userId) {
+        return generateToken(username, List.of(role), userId);
+    }
+
+    public String generateToken(String username, List<String> roles, int userId) {
         Map<String, Object> claims = new HashMap<>();
-        claims.put("role", role);
+        claims.put("roles", roles);
+        if (roles != null && !roles.isEmpty()) {
+            claims.put("role", roles.get(0)); // backward compatibility
+        }
         claims.put("userId", userId);
         return Jwts.builder()
                 .setClaims(claims)
@@ -45,6 +53,16 @@ public class JwtUtil {
 
     public String extractRole(String token) {
         return (String) parseClaims(token).get("role");
+    }
+
+    @SuppressWarnings("unchecked")
+    public List<String> extractRoles(String token) {
+        Object roles = parseClaims(token).get("roles");
+        if (roles instanceof List<?>) {
+            return ((List<?>) roles).stream().map(String::valueOf).toList();
+        }
+        String role = extractRole(token);
+        return role == null ? List.of() : List.of(role);
     }
 
     public Integer extractUserId(String token) {

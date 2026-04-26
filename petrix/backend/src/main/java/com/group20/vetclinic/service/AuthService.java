@@ -5,13 +5,17 @@ import com.group20.vetclinic.dto.LoginRequest;
 import com.group20.vetclinic.dto.RegisterRequest;
 import com.group20.vetclinic.dto.RegisterVetRequest;
 import com.group20.vetclinic.model.Owner;
+import com.group20.vetclinic.model.User;
 import com.group20.vetclinic.model.Veterinarian;
 import com.group20.vetclinic.repository.OwnerRepository;
+import com.group20.vetclinic.repository.UserRepository;
 import com.group20.vetclinic.repository.VetRepository;
 import com.group20.vetclinic.security.JwtUtil;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -19,6 +23,7 @@ public class AuthService {
 
     private final OwnerRepository ownerRepo;
     private final VetRepository vetRepo;
+    private final UserRepository userRepo;
     private final JwtUtil jwtUtil;
     private final PasswordEncoder passwordEncoder;
 
@@ -30,8 +35,9 @@ public class AuthService {
 
         String hash = passwordEncoder.encode(req.getPassword());
         int id = ownerRepo.create(req.getFullName(), req.getUsername(), hash, req.getEmail(), req.getPhone());
-        String token = jwtUtil.generateToken(req.getUsername(), "OWNER", id);
-        return new AuthResponse(token, "OWNER", id, req.getUsername(), req.getFullName());
+        List<String> roles = List.of("OWNER");
+        String token = jwtUtil.generateToken(req.getUsername(), roles, id);
+        return new AuthResponse(token, roles, id, req.getUsername(), req.getFullName());
     }
 
     public AuthResponse registerVet(RegisterVetRequest req) {
@@ -40,11 +46,32 @@ public class AuthService {
 
         String hash = passwordEncoder.encode(req.getPassword());
         int id = vetRepo.create(req.getFullName(), req.getUsername(), hash, req.getBranchId(), req.getSpecialization(), req.getSpeciesExpertise());
-        String token = jwtUtil.generateToken(req.getUsername(), "VET", id);
-        return new AuthResponse(token, "VET", id, req.getUsername(), req.getFullName());
+        List<String> roles = List.of("VET");
+        String token = jwtUtil.generateToken(req.getUsername(), roles, id);
+        return new AuthResponse(token, roles, id, req.getUsername(), req.getFullName());
     }
 
     public AuthResponse login(LoginRequest req) {
+        if (req.getUsername() == null || req.getUsername().isBlank()
+                || req.getPassword() == null || req.getPassword().isBlank()) {
+            throw new IllegalArgumentException("Username and password are required");
+        }
+
+        // Try USERS (ADMIN / CLINIC_MANAGER and other role-based users)
+        var appUserOpt = userRepo.findByUsername(req.getUsername());
+        if (appUserOpt.isPresent()) {
+            User u = appUserOpt.get();
+            if (!passwordEncoder.matches(req.getPassword(), u.getPasswordHash()))
+                throw new IllegalArgumentException("Invalid credentials");
+
+            var roles = userRepo.findRoleNamesByUserId(u.getId());
+            if (roles.isEmpty())
+                throw new IllegalArgumentException("User has no assigned role");
+
+            String token = jwtUtil.generateToken(u.getUsername(), roles, u.getId());
+            return new AuthResponse(token, roles, u.getId(), u.getUsername(), u.getFullName());
+        }
+
         // Try owner
         var ownerOpt = ownerRepo.findByUsername(req.getUsername());
         if (ownerOpt.isPresent()) {
@@ -52,8 +79,9 @@ public class AuthService {
             if (!passwordEncoder.matches(req.getPassword(), hash))
                 throw new IllegalArgumentException("Invalid credentials");
             Owner o = ownerOpt.get();
-            String token = jwtUtil.generateToken(o.getUsername(), "OWNER", o.getOwnerId());
-            return new AuthResponse(token, "OWNER", o.getOwnerId(), o.getUsername(), o.getFullName());
+            List<String> roles = List.of("OWNER");
+            String token = jwtUtil.generateToken(o.getUsername(), roles, o.getOwnerId());
+            return new AuthResponse(token, roles, o.getOwnerId(), o.getUsername(), o.getFullName());
         }
 
         // Try vet
@@ -63,8 +91,9 @@ public class AuthService {
             if (!passwordEncoder.matches(req.getPassword(), hash))
                 throw new IllegalArgumentException("Invalid credentials");
             Veterinarian v = vetOpt.get();
-            String token = jwtUtil.generateToken(v.getUsername(), "VET", v.getVetId());
-            return new AuthResponse(token, "VET", v.getVetId(), v.getUsername(), v.getFullName());
+            List<String> roles = List.of("VET");
+            String token = jwtUtil.generateToken(v.getUsername(), roles, v.getVetId());
+            return new AuthResponse(token, roles, v.getVetId(), v.getUsername(), v.getFullName());
         }
 
         throw new IllegalArgumentException("Invalid credentials");

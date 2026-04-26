@@ -13,9 +13,14 @@ export function AuthProvider({ children }) {
   })
 
   const login = useCallback((userData) => {
-    localStorage.setItem('vc_user', JSON.stringify(userData))
+    const normalizedRole = userData?.role || userData?.roles?.[0] || null
+    const normalizedUser = normalizedRole
+      ? { ...userData, role: normalizedRole }
+      : userData
+
+    localStorage.setItem('vc_user', JSON.stringify(normalizedUser))
     localStorage.setItem('vc_token', userData.token)
-    setUser(userData)
+    setUser(normalizedUser)
   }, [])
 
   const logout = useCallback(() => {

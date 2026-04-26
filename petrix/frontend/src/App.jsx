@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { AuthProvider, useAuth } from './context/AuthContext'
 import Navbar from './components/Navbar'
+import ProtectedRoute from './components/ProtectedRoute'
 import LoginPage from './pages/LoginPage'
 import RegisterPage from './pages/RegisterPage'
 import OwnerDashboard from './pages/OwnerDashboard'
@@ -11,16 +12,12 @@ import MembershipPage from './pages/MembershipPage'
 import AddPetPage from './pages/AddPetPage'
 import WasteLogPage from './pages/WasteLogPage'
 import ReportsPage from './pages/ReportsPage'
-
-function ProtectedRoute({ children, allowedRole }) {
-  const { user } = useAuth()
-  if (!user) return <Navigate to="/login" replace />
-  if (allowedRole && user.role !== allowedRole) return <Navigate to="/" replace />
-  return children
-}
+import ManagerDashboardPage from './pages/ManagerDashboardPage'
+import AdminDashboardPage from './pages/AdminDashboardPage'
 
 function AppRoutes() {
   const { user } = useAuth()
+  const currentRole = user?.role || user?.roles?.[0]
   return (
     <>
       <Navbar />
@@ -31,33 +28,42 @@ function AppRoutes() {
         {/* Owner routes */}
         <Route path="/" element={
           <ProtectedRoute>
-            {user?.role === 'VET'
-              ? <Navigate to="/vet-dashboard" replace />
-              : <OwnerDashboard />}
+            {currentRole === 'VET' && <Navigate to="/vet-dashboard" replace />}
+            {currentRole === 'ADMIN' && <Navigate to="/admin-dashboard" replace />}
+            {currentRole === 'CLINIC_MANAGER' && <Navigate to="/manager-dashboard" replace />}
+            {!['VET', 'ADMIN', 'CLINIC_MANAGER'].includes(currentRole) && <OwnerDashboard />}
           </ProtectedRoute>
         } />
         <Route path="/book-appointment" element={
-          <ProtectedRoute allowedRole="OWNER"><AppointmentBookingPage /></ProtectedRoute>
+          <ProtectedRoute allowedRoles={['OWNER']}><AppointmentBookingPage /></ProtectedRoute>
         } />
         <Route path="/pets/:petId" element={
           <ProtectedRoute><PetProfilePage /></ProtectedRoute>
         } />
         <Route path="/pets/add" element={
-          <ProtectedRoute allowedRole="OWNER"><AddPetPage /></ProtectedRoute>
+          <ProtectedRoute allowedRoles={['OWNER']}><AddPetPage /></ProtectedRoute>
         } />
         <Route path="/membership" element={
-          <ProtectedRoute allowedRole="OWNER"><MembershipPage /></ProtectedRoute>
+          <ProtectedRoute allowedRoles={['OWNER']}><MembershipPage /></ProtectedRoute>
         } />
 
         {/* Vet routes */}
         <Route path="/vet-dashboard" element={
-          <ProtectedRoute allowedRole="VET"><VetDashboardPage /></ProtectedRoute>
+          <ProtectedRoute allowedRoles={['VET']}><VetDashboardPage /></ProtectedRoute>
         } />
         <Route path="/waste-log" element={
-          <ProtectedRoute allowedRole="VET"><WasteLogPage /></ProtectedRoute>
+          <ProtectedRoute allowedRoles={['VET']}><WasteLogPage /></ProtectedRoute>
         } />
         <Route path="/reports" element={
-          <ProtectedRoute allowedRole="VET"><ReportsPage /></ProtectedRoute>
+          <ProtectedRoute allowedRoles={['VET']}><ReportsPage /></ProtectedRoute>
+        } />
+
+        {/* Role-based admin/manager routes */}
+        <Route path="/manager-dashboard" element={
+          <ProtectedRoute allowedRoles={['CLINIC_MANAGER']}><ManagerDashboardPage /></ProtectedRoute>
+        } />
+        <Route path="/admin-dashboard" element={
+          <ProtectedRoute allowedRoles={['ADMIN']}><AdminDashboardPage /></ProtectedRoute>
         } />
 
         <Route path="*" element={<Navigate to="/" replace />} />

@@ -16,6 +16,31 @@ public class UserDetailsServiceImpl implements UserDetailsService {
 
     @Override
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
+        // Try USERS first (role-based accounts)
+        String appUserSql = "SELECT id, username, password_hash FROM USERS WHERE username = ?";
+        List<UserDetails> appUsers = jdbc.query(appUserSql, (rs, i) -> {
+                    int userId = rs.getInt("id");
+                    List<SimpleGrantedAuthority> authorities = jdbc.query(
+                            """
+                            SELECT r.name
+                            FROM USER_ROLE ur
+                            JOIN ROLES r ON r.id = ur.role_id
+                            WHERE ur.user_id = ?
+                            """,
+                            (roleRs, j) -> new SimpleGrantedAuthority("ROLE_" + roleRs.getString("name")),
+                            userId
+                    );
+
+                    return User.builder()
+                            .username(rs.getString("username"))
+                            .password(rs.getString("password_hash"))
+                            .authorities(authorities)
+                            .build();
+                },
+                username);
+
+        if (!appUsers.isEmpty()) return appUsers.get(0);
+
         // Try OWNER first
         String ownerSql = "SELECT username, password_hash FROM OWNER WHERE username = ?";
         List<UserDetails> owners = jdbc.query(ownerSql, (rs, i) ->
