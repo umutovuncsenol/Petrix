@@ -1,0 +1,122 @@
+.inventory-alert {
+  background: var(--red-50);
+  border: 1px solid #fecaca;
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  color: var(--red-500);
+  margin-bottom: 1rem;
+  padding: 1rem 1.25rem;
+}
+
+.inventory-alert h2 {
+  color: var(--gray-800);
+  margin: 0 0 .5rem;
+}
+
+.inventory-alert ul {
+  margin: 0;
+  padding-left: 1.25rem;
+}
+
+.inventory-filter-bar {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.inventory-filter-bar input {
+  flex: 1 1 260px;
+  min-width: 220px;
+}
+
+.inventory-filter-bar select {
+  flex: 0 1 170px;
+}
+
+.inventory-table-heading .section-title {
+  margin: 0;
+}
+
+.inventory-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .5rem;
+}
+
+.inventory-modal-overlay {
+  align-items: center;
+  background: rgba(31, 41, 55, 0.48);
+  display: flex;
+  inset: 0;
+  justify-content: center;
+  padding: 1rem;
+  position: fixed;
+  z-index: 1000;
+}
+
+.inventory-modal-card {
+  max-height: calc(100vh - 2rem);
+  overflow-y: auto;
+  position: relative;
+  width: min(420px, 100%);
+}
+
+.inventory-modal-card .section-title {
+  margin: 0 2rem 1rem 0;
+}
+
+.inventory-modal-card form {
+  display: grid;
+  gap: .25rem;
+}
+
+.inventory-modal-card .form-group {
+  margin-bottom: .75rem;
+}
+
+.inventory-modal-card input:disabled {
+  background: var(--gray-100);
+  color: var(--gray-600);
+}
+
+.inventory-modal-close {
+  min-height: 2rem;
+  padding: .2rem .65rem;
+  position: absolute;
+  right: 1rem;
+  top: 1rem;
+}
+
+.inventory-error {
+  color: var(--red-500);
+  font-size: .875rem;
+  margin: 0 0 .75rem;
+}
+
+.inventory-success {
+  color: var(--green-700);
+  font-size: .875rem;
+  margin: 0 0 .75rem;
+}
+
+@media (max-width: 700px) {
+  .inventory-table-heading {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: .25rem;
+  }
+}
+
+@media (max-width: 560px) {
+  .inventory-filter-bar,
+  .inventory-filter-bar input,
+  .inventory-filter-bar select,
+  .inventory-filter-bar button {
+    width: 100%;
+  }
+
+  .inventory-modal-card {
+    width: 100%;
+  }
+}

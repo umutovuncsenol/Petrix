@@ -4,8 +4,13 @@ import com.group20.vetclinic.model.Medication;
 import lombok.RequiredArgsConstructor;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
+import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Transactional;
 
+import java.sql.Date;
+import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -43,6 +48,73 @@ public class InventoryRepository {
             ORDER BY m.name
             """;
         return jdbc.query(sql, medMapper, branchId);
+    }
+
+    public List<Medication> findStockByBranchFiltered(int branchId, String name, Boolean isVaccine, String expirationStatus) {
+        StringBuilder sql = new StringBuilder("""
+            SELECT m.*, s.quantity, s.reorder_level, s.low_stock_flagged, s.expiry_date, s.minimum_stock_threshold
+            FROM MEDICATION m
+            JOIN STOCKED_AS s ON m.med_id = s.med_id
+            WHERE s.branch_id = ?
+            """);
+        List<Object> params = new ArrayList<>();
+        params.add(branchId);
+
+        if (name != null && !name.trim().isEmpty()) {
+            sql.append(" AND m.name ILIKE '%' || ? || '%'");
+            params.add(name.trim());
+        }
+
+        if (isVaccine != null) {
+            sql.append(" AND m.is_vaccine = ?");
+            params.add(isVaccine);
+        }
+
+        if ("expired".equalsIgnoreCase(expirationStatus)) {
+            sql.append(" AND s.expiry_date < CURRENT_DATE");
+        } else if ("expiring_soon".equalsIgnoreCase(expirationStatus)) {
+            sql.append(" AND s.expiry_date BETWEEN CURRENT_DATE AND CURRENT_DATE + 30");
+        } else if ("ok".equalsIgnoreCase(expirationStatus)) {
+            sql.append(" AND (s.expiry_date IS NULL OR s.expiry_date > CURRENT_DATE + 30)");
+        }
+
+        sql.append(" ORDER BY m.name");
+        return jdbc.query(sql.toString(), medMapper, params.toArray());
+    }
+
+    public void restock(int branchId, int medId, int quantityToAdd, String expiryDate, Integer reorderLevel) {
+        jdbc.update("""
+            INSERT INTO STOCKED_AS (branch_id, med_id, quantity, expiry_date, reorder_level)
+            VALUES (?, ?, ?, ?, ?)
+            ON CONFLICT (branch_id, med_id) DO UPDATE
+            SET quantity = STOCKED_AS.quantity + EXCLUDED.quantity,
+                expiry_date = COALESCE(EXCLUDED.expiry_date, STOCKED_AS.expiry_date),
+                reorder_level = COALESCE(EXCLUDED.reorder_level, STOCKED_AS.reorder_level)
+            """, branchId, medId, quantityToAdd, toSqlDate(expiryDate), reorderLevel);
+    }
+
+    @Transactional
+    public void expireStock(int branchId, int medId, int quantityToRemove, String reason) {
+        Integer currentQuantity;
+        try {
+            currentQuantity = jdbc.queryForObject("""
+                SELECT quantity FROM STOCKED_AS WHERE branch_id = ? AND med_id = ?
+                """, Integer.class, branchId, medId);
+        } catch (EmptyResultDataAccessException e) {
+            throw new IllegalArgumentException("Insufficient stock");
+        }
+
+        if (currentQuantity == null || currentQuantity < quantityToRemove) {
+            throw new IllegalArgumentException("Insufficient stock");
+        }
+
+        jdbc.update("""
+            UPDATE STOCKED_AS SET quantity = quantity - ? WHERE branch_id = ? AND med_id = ?
+            """, quantityToRemove, branchId, medId);
+        jdbc.update("""
+            INSERT INTO WASTE_TRACKING (branch_id, med_id, quantity_wasted, reason)
+            VALUES (?, ?, ?, ?)
+            """, branchId, medId, quantityToRemove, reason);
     }
 
     public List<Map<String, Object>> findLowStockByBranch(int branchId) {
@@ -113,5 +185,12 @@ public class InventoryRepository {
         report.put("wasteSummary", wasteSummary);
         report.put("costBreakdown", costBreakdown.isEmpty() ? null : costBreakdown.get(0));
         return report;
+    }
+
+    private Date toSqlDate(String value) {
+        if (value == null || value.trim().isEmpty()) {
+            return null;
+        }
+        return Date.valueOf(LocalDate.parse(value));
     }
 }
