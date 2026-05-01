@@ -12,6 +12,29 @@ for (let h = 9; h <= 18; h++) {
 
 const SPECS = ['Any','Cardiology','Surgery','Dermatology','Orthopedics','Internal Medicine','Dentistry','Neurology']
 
+function getBookingError(err) {
+  const backendMessage = err.response?.data?.message || err.response?.data?.error || ''
+
+  if (backendMessage.includes('outstanding unpaid bills')) {
+    return {
+      type: 'blocking',
+      message: 'This pet has outstanding unpaid bills. Please pay them before booking a new appointment.',
+    }
+  }
+
+  if (backendMessage.includes('maximum number of appointments')) {
+    return {
+      type: 'blocking',
+      message: 'This veterinarian has reached the maximum number of appointments for the selected day. Please choose another date or veterinarian.',
+    }
+  }
+
+  return {
+    type: 'unexpected',
+    message: 'Could not book the appointment. Please try again.',
+  }
+}
+
 export default function AppointmentBookingPage() {
   const { user }   = useAuth()
   const navigate   = useNavigate()
@@ -37,7 +60,7 @@ export default function AppointmentBookingPage() {
   const [selectedPet,     setSelectedPet]     = useState('')
   const [reason,          setReason]          = useState('')
   const [loading,         setLoading]         = useState(false)
-  const [error,           setError]           = useState('')
+  const [error,           setError]           = useState(null)
   const [success,         setSuccess]         = useState(false)
 
   useEffect(() => {
@@ -46,6 +69,7 @@ export default function AppointmentBookingPage() {
   }, [user])
 
   async function searchVets() {
+    setError(null)
     setSearched(true)
     const params = {}
     if (filterBranch) params.branchId = filterBranch
@@ -56,6 +80,7 @@ export default function AppointmentBookingPage() {
   }
 
   async function selectVet(vet) {
+    setError(null)
     setSelectedVet(vet)
     setStep(2)
     const { data } = await vetAPI.getAvailability(vet.vetId, filterDate)
@@ -63,9 +88,9 @@ export default function AppointmentBookingPage() {
   }
 
   async function confirmBooking() {
-    if (!selectedPet) { setError('Please select a pet.'); return }
-    if (!selectedSlot) { setError('Please select a time slot.'); return }
-    setError('')
+    if (!selectedPet) { setError({ type: 'unexpected', message: 'Please select a pet.' }); return }
+    if (!selectedSlot) { setError({ type: 'unexpected', message: 'Please select a time slot.' }); return }
+    setError(null)
     setLoading(true)
     try {
       const startTime = `${filterDate}T${selectedSlot}:00`
@@ -81,7 +106,7 @@ export default function AppointmentBookingPage() {
       setSuccess(true)
       setTimeout(() => navigate('/'), 1800)
     } catch (err) {
-      setError(err.response?.data?.error || 'Booking failed — time slot may be taken.')
+      setError(getBookingError(err))
     } finally {
       setLoading(false)
     }
@@ -146,7 +171,11 @@ export default function AppointmentBookingPage() {
                 <label>Date</label>
                 <input type="date" value={filterDate}
                   min={new Date().toISOString().slice(0,10)}
-                  onChange={e => setFilterDate(e.target.value)} />
+                  onChange={e => {
+                    setError(null)
+                    setSelectedSlot(null)
+                    setFilterDate(e.target.value)
+                  }} />
               </div>
               <button className="btn btn-primary" style={{ marginTop: '1.5rem' }} onClick={searchVets}>Search</button>
             </div>
@@ -199,7 +228,12 @@ export default function AppointmentBookingPage() {
                 return (
                   <button key={slot}
                     className={`slot ${busy ? 'unavailable' : ''} ${selectedSlot === slot ? 'selected' : ''}`}
-                    onClick={() => !busy && setSelectedSlot(slot)}
+                    onClick={() => {
+                      if (!busy) {
+                        setError(null)
+                        setSelectedSlot(slot)
+                      }
+                    }}
                     disabled={busy}>
                     {slot}
                   </button>
@@ -222,7 +256,10 @@ export default function AppointmentBookingPage() {
         {/* ── Step 3: Confirm ── */}
         {step === 3 && (
           <div className="card">
-            <button className="btn btn-ghost btn-sm mb-3" onClick={() => setStep(2)}>← Back</button>
+            <button className="btn btn-ghost btn-sm mb-3" onClick={() => {
+              setError(null)
+              setStep(2)
+            }}>← Back</button>
             <h2 className="section-title">Confirm Appointment</h2>
 
             <div className="grid-3 mb-4">
@@ -231,11 +268,19 @@ export default function AppointmentBookingPage() {
               <div><div className="text-xs text-muted">Date & Time</div><div className="font-semibold">{filterDate} {selectedSlot}</div></div>
             </div>
 
-            {error && <div className="alert alert-error">{error}</div>}
+            {error && (
+              <div className="alert alert-error">
+                {error.type === 'blocking' && <div className="font-semibold mb-1">Booking blocked</div>}
+                <div>{error.message}</div>
+              </div>
+            )}
 
             <div className="form-group">
               <label>Select Pet</label>
-              <select value={selectedPet} onChange={e => setSelectedPet(e.target.value)} required>
+              <select value={selectedPet} onChange={e => {
+                setError(null)
+                setSelectedPet(e.target.value)
+              }} required>
                 <option value="">Choose a pet</option>
                 {pets.map(p => <option key={p.petId} value={p.petId}>{p.name} ({p.species})</option>)}
               </select>
