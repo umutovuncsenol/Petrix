@@ -38,6 +38,9 @@ public class User {
 
     private String phone;
 
+    @Column(name = "branch_id")
+    private Integer branchId;
+
     @ManyToMany(fetch = FetchType.EAGER)
     @JoinTable(
         name = "USER_ROLE",

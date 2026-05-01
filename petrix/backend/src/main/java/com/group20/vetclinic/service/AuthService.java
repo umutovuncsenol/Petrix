@@ -37,7 +37,7 @@ public class AuthService {
         int id = ownerRepo.create(req.getFullName(), req.getUsername(), hash, req.getEmail(), req.getPhone());
         List<String> roles = List.of("OWNER");
         String token = jwtUtil.generateToken(req.getUsername(), roles, id);
-        return new AuthResponse(token, roles, id, req.getUsername(), req.getFullName());
+        return new AuthResponse(token, roles, id, req.getUsername(), req.getFullName(), null);
     }
 
     public AuthResponse registerVet(RegisterVetRequest req) {
@@ -47,8 +47,8 @@ public class AuthService {
         String hash = passwordEncoder.encode(req.getPassword());
         int id = vetRepo.create(req.getFullName(), req.getUsername(), hash, req.getBranchId(), req.getSpecialization(), req.getSpeciesExpertise());
         List<String> roles = List.of("VET");
-        String token = jwtUtil.generateToken(req.getUsername(), roles, id);
-        return new AuthResponse(token, roles, id, req.getUsername(), req.getFullName());
+        String token = jwtUtil.generateToken(req.getUsername(), roles, id, req.getBranchId());
+        return new AuthResponse(token, roles, id, req.getUsername(), req.getFullName(), req.getBranchId());
     }
 
     public AuthResponse login(LoginRequest req) {
@@ -68,8 +68,8 @@ public class AuthService {
             if (roles.isEmpty())
                 throw new IllegalArgumentException("User has no assigned role");
 
-            String token = jwtUtil.generateToken(u.getUsername(), roles, u.getId());
-            return new AuthResponse(token, roles, u.getId(), u.getUsername(), u.getFullName());
+            String token = jwtUtil.generateToken(u.getUsername(), roles, u.getId(), u.getBranchId());
+            return new AuthResponse(token, roles, u.getId(), u.getUsername(), u.getFullName(), u.getBranchId());
         }
 
         // Try owner
@@ -81,7 +81,7 @@ public class AuthService {
             Owner o = ownerOpt.get();
             List<String> roles = List.of("OWNER");
             String token = jwtUtil.generateToken(o.getUsername(), roles, o.getOwnerId());
-            return new AuthResponse(token, roles, o.getOwnerId(), o.getUsername(), o.getFullName());
+            return new AuthResponse(token, roles, o.getOwnerId(), o.getUsername(), o.getFullName(), null);
         }
 
         // Try vet
@@ -92,8 +92,8 @@ public class AuthService {
                 throw new IllegalArgumentException("Invalid credentials");
             Veterinarian v = vetOpt.get();
             List<String> roles = List.of("VET");
-            String token = jwtUtil.generateToken(v.getUsername(), roles, v.getVetId());
-            return new AuthResponse(token, roles, v.getVetId(), v.getUsername(), v.getFullName());
+            String token = jwtUtil.generateToken(v.getUsername(), roles, v.getVetId(), v.getBranchId());
+            return new AuthResponse(token, roles, v.getVetId(), v.getUsername(), v.getFullName(), v.getBranchId());
         }
 
         throw new IllegalArgumentException("Invalid credentials");

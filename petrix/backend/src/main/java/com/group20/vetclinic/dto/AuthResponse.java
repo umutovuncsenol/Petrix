@@ -16,6 +16,7 @@ public class AuthResponse {
     private int userId;
     private String username;
     private String fullName;
+    private Integer branchId;
 
     public AuthResponse(String token, String role, int userId, String username, String fullName) {
         this.token = token;
@@ -24,14 +25,20 @@ public class AuthResponse {
         this.userId = userId;
         this.username = username;
         this.fullName = fullName;
+        this.branchId = null;
     }
 
     public AuthResponse(String token, List<String> roles, int userId, String username, String fullName) {
+        this(token, roles, userId, username, fullName, null);
+    }
+
+    public AuthResponse(String token, List<String> roles, int userId, String username, String fullName, Integer branchId) {
         this.token = token;
         this.roles = roles;
         this.role = (roles == null || roles.isEmpty()) ? null : roles.get(0);
         this.userId = userId;
         this.username = username;
         this.fullName = fullName;
+        this.branchId = branchId;
     }
 }

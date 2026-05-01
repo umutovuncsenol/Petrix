@@ -32,12 +32,19 @@ public class JwtUtil {
     }
 
     public String generateToken(String username, List<String> roles, int userId) {
+        return generateToken(username, roles, userId, null);
+    }
+
+    public String generateToken(String username, List<String> roles, int userId, Integer branchId) {
         Map<String, Object> claims = new HashMap<>();
         claims.put("roles", roles);
         if (roles != null && !roles.isEmpty()) {
             claims.put("role", roles.get(0)); // backward compatibility
         }
         claims.put("userId", userId);
+        if (branchId != null) {
+            claims.put("branchId", branchId);
+        }
         return Jwts.builder()
                 .setClaims(claims)
                 .setSubject(username)

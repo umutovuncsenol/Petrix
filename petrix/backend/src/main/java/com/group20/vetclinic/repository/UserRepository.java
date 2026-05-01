@@ -23,12 +23,13 @@ public class UserRepository {
         user.setFullName(rs.getString("full_name"));
         user.setEmail(rs.getString("email"));
         user.setPhone(rs.getString("phone"));
+        user.setBranchId((Integer) rs.getObject("branch_id"));
         return user;
     };
 
     public Optional<User> findByUsername(String username) {
         return jdbc.query(
-                "SELECT id, username, password_hash, full_name, email, phone FROM USERS WHERE username = ?",
+                "SELECT id, username, password_hash, full_name, email, phone, branch_id FROM USERS WHERE username = ?",
                 rowMapper,
                 username
         ).stream().findFirst();
@@ -53,10 +54,14 @@ public class UserRepository {
     }
 
     public int create(String username, String passwordHash, String fullName, String email, String phone) {
+        return create(username, passwordHash, fullName, email, phone, null);
+    }
+
+    public int create(String username, String passwordHash, String fullName, String email, String phone, Integer branchId) {
         Integer id = jdbc.queryForObject(
                 """
-                INSERT INTO USERS (username, password_hash, full_name, email, phone)
-                VALUES (?, ?, ?, ?, ?)
+                INSERT INTO USERS (username, password_hash, full_name, email, phone, branch_id)
+                VALUES (?, ?, ?, ?, ?, ?)
                 RETURNING id
                 """,
                 Integer.class,
@@ -64,12 +69,17 @@ public class UserRepository {
                 passwordHash,
                 fullName,
                 email,
-                phone
+                phone,
+                branchId
         );
         if (id == null) {
             throw new IllegalStateException("Failed to create user: " + username);
         }
         return id;
+    }
+
+    public void updateBranchId(int userId, Integer branchId) {
+        jdbc.update("UPDATE USERS SET branch_id = ? WHERE id = ?", branchId, userId);
     }
 
     public boolean hasRoleAssignment(int userId, int roleId) {

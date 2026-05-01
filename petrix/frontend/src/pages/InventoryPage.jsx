@@ -21,7 +21,7 @@ function getErrorMessage(err) {
 
 export default function InventoryPage() {
   const { user } = useAuth()
-  const branchId = user?.branchId || 1
+  const branchId = user?.branchId
   const token = user?.token || localStorage.getItem('vc_token')
 
   const [inventory, setInventory] = useState([])
@@ -110,48 +110,58 @@ export default function InventoryPage() {
           </p>
         </div>
 
-        <LowStockAlerts alerts={lowStockAlerts} />
-
-        <div className="card mb-4">
-          <h2 className="section-title">Filters</h2>
-          <FilterBar filters={filters} onChange={handleFilterChange} onSearch={handleSearch} />
-        </div>
-
-        {error && <div className="alert alert-error">{error}</div>}
-
-        <div className="card">
-          <div className="flex items-center justify-between mb-3 inventory-table-heading">
-            <h2 className="section-title">Branch Stock</h2>
-            <span className="text-sm text-muted">{inventory.length} items</span>
+        {!branchId && (
+          <div className="alert alert-error">
+            No branch is assigned to this manager account.
           </div>
-
-          {loading ? (
-            <div className="spinner" />
-          ) : (
-            <InventoryTable
-              items={inventory}
-              onRestockClick={(item) => openModal('restock', item)}
-              onExpireClick={(item) => openModal('waste', item)}
-            />
-          )}
-        </div>
-
-        {modalType === 'restock' && selectedItem && (
-          <RestockModal
-            item={selectedItem}
-            token={token}
-            onClose={closeModal}
-            onSuccess={handleModalSuccess}
-          />
         )}
 
-        {modalType === 'waste' && selectedItem && (
-          <WasteModal
-            item={selectedItem}
-            token={token}
-            onClose={closeModal}
-            onSuccess={handleModalSuccess}
-          />
+        {branchId && (
+          <>
+            <LowStockAlerts alerts={lowStockAlerts} />
+
+            <div className="card mb-4">
+              <h2 className="section-title">Filters</h2>
+              <FilterBar filters={filters} onChange={handleFilterChange} onSearch={handleSearch} />
+            </div>
+
+            {error && <div className="alert alert-error">{error}</div>}
+
+            <div className="card">
+              <div className="flex items-center justify-between mb-3 inventory-table-heading">
+                <h2 className="section-title">Branch Stock</h2>
+                <span className="text-sm text-muted">{inventory.length} items</span>
+              </div>
+
+              {loading ? (
+                <div className="spinner" />
+              ) : (
+                <InventoryTable
+                  items={inventory}
+                  onRestockClick={(item) => openModal('restock', item)}
+                  onExpireClick={(item) => openModal('waste', item)}
+                />
+              )}
+            </div>
+
+            {modalType === 'restock' && selectedItem && (
+              <RestockModal
+                item={selectedItem}
+                token={token}
+                onClose={closeModal}
+                onSuccess={handleModalSuccess}
+              />
+            )}
+
+            {modalType === 'waste' && selectedItem && (
+              <WasteModal
+                item={selectedItem}
+                token={token}
+                onClose={closeModal}
+                onSuccess={handleModalSuccess}
+              />
+            )}
+          </>
         )}
       </div>
     </div>

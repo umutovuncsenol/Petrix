@@ -40,6 +40,7 @@ public class UserDataInitializer implements ApplicationRunner {
                 "System Admin",
                 "admin@vetclinic.local",
                 "+90 000 000 0000",
+                null,
                 "ADMIN"
         );
 
@@ -49,6 +50,7 @@ public class UserDataInitializer implements ApplicationRunner {
                 "Clinic Manager",
                 "manager@vetclinic.local",
                 "+90 000 000 0001",
+                1,
                 "CLINIC_MANAGER"
         );
     }
@@ -59,6 +61,7 @@ public class UserDataInitializer implements ApplicationRunner {
             String fullName,
             String email,
             String phone,
+            Integer branchId,
             String roleName
     ) {
         Role role = roleRepository.findByName(roleName)
@@ -68,10 +71,13 @@ public class UserDataInitializer implements ApplicationRunner {
         var existing = userRepository.findByUsername(username);
         if (existing.isPresent()) {
             userId = existing.get().getId();
+            if (branchId != null && existing.get().getBranchId() == null) {
+                userRepository.updateBranchId(userId, branchId);
+            }
         } else {
             String passwordHash = passwordEncoder.encode(rawPassword);
             String safeEmail = userRepository.existsByEmail(email) ? username + "@vetclinic.local" : email;
-            userId = userRepository.create(username, passwordHash, fullName, safeEmail, phone);
+            userId = userRepository.create(username, passwordHash, fullName, safeEmail, phone, branchId);
             log.info("Seeded user: {}", username);
         }
 
