@@ -43,9 +43,24 @@ public class VaccinationController {
                 req.getBatchNumber(),
                 administeredDate,
                 nextDueDate,
-                req.getStatus(),
+                "done",
                 req.getNotes()
             );
+            // When a next-due date is set, insert a follow-up 'upcoming' record so that
+            // once that date passes the OverdueVaccinations view surfaces it correctly.
+            if (nextDueDate != null) {
+                vaccRepo.createRecord(
+                    req.getPlanId(),
+                    req.getMedId(),
+                    req.getVetId(),
+                    null,
+                    null,
+                    nextDueDate,
+                    nextDueDate,
+                    "upcoming",
+                    null
+                );
+            }
             return ResponseEntity.ok(Map.of("vaccId", vaccId));
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { branchAPI, vetAPI, petAPI, appointmentAPI } from '../services/api'
 
@@ -36,8 +36,9 @@ function getBookingError(err) {
 }
 
 export default function AppointmentBookingPage() {
-  const { user }   = useAuth()
-  const navigate   = useNavigate()
+  const { user }     = useAuth()
+  const navigate     = useNavigate()
+  const location     = useLocation()
 
   const [step, setStep] = useState(1) // 1=filter vets, 2=pick time, 3=confirm
 
@@ -58,7 +59,7 @@ export default function AppointmentBookingPage() {
 
   // Step 3
   const [selectedPet,     setSelectedPet]     = useState('')
-  const [reason,          setReason]          = useState('')
+  const [reason,          setReason]          = useState(location.state?.reason || '')
   const [loading,         setLoading]         = useState(false)
   const [error,           setError]           = useState(null)
   const [success,         setSuccess]         = useState(false)

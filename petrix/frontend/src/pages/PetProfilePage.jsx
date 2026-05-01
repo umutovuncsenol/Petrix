@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
+import { useParams, useNavigate, useLocation } from 'react-router-dom'
 import { petAPI, vetAPI, inventoryAPI, vaccinationAPI } from '../services/api'
 import { useAuth } from '../context/AuthContext'
 
@@ -120,7 +120,9 @@ export default function PetProfilePage() {
     ? Math.floor((Date.now() - new Date(pet.birthDate)) / (365.25 * 86400000))
     : null
 
-  const isVet = user?.role === 'VET'
+  const role = user?.role || user?.roles?.[0]
+  const isVet = role === 'VET'
+  const isOwner = role === 'OWNER'
 
   return (
     <div className="page">
@@ -188,11 +190,19 @@ export default function PetProfilePage() {
           <div className="card">
             <div className="flex items-center justify-between mb-3">
               <h2 className="section-title" style={{ margin: 0 }}>Vaccination Records</h2>
-              {isVet && !showBookForm && (
-                <button className="btn btn-primary btn-sm" onClick={openBookForm}>
-                  + Book Vaccination
-                </button>
-              )}
+              <div className="flex gap-2">
+                {isVet && !showBookForm && (
+                  <button className="btn btn-primary btn-sm" onClick={openBookForm}>
+                    + Record Vaccination
+                  </button>
+                )}
+                {isOwner && (
+                  <button className="btn btn-outline btn-sm"
+                    onClick={() => navigate('/book-appointment', { state: { reason: 'Vaccination' } })}>
+                    Book Vaccination Appointment
+                  </button>
+                )}
+              </div>
             </div>
 
             {bookMsg   && <div className="alert alert-success mb-3">{bookMsg}</div>}
