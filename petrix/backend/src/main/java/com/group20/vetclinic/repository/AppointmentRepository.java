@@ -85,6 +85,39 @@ public class AppointmentRepository {
         return jdbc.query(sql, rowMapper, ownerId);
     }
 
+    public List<Map<String, Object>> findVisitSummariesByOwner(int ownerId) {
+        String sql = """
+            SELECT
+                a.appt_id,
+                a.start_time,
+                a.reason,
+                v.visit_id,
+                v.notes AS visit_notes,
+                d.description AS diagnosis,
+                d.severity,
+                d.treatment_notes,
+                d.follow_up_required,
+                vet.full_name AS veterinarian,
+                b.name AS branch,
+                i.invoice_id,
+                i.consultation_fee,
+                i.treatment_costs,
+                i.medication_costs,
+                (i.consultation_fee + i.treatment_costs + i.medication_costs) AS total_bill,
+                i.status AS payment_status
+            FROM APPOINTMENT a
+            JOIN VISIT v ON v.appt_id = a.appt_id
+            LEFT JOIN DIAGNOSIS d ON d.visit_id = v.visit_id
+            JOIN VETERINARIAN vet ON a.vet_id = vet.vet_id
+            JOIN BRANCH b ON a.branch_id = b.branch_id
+            LEFT JOIN INVOICE i ON i.visit_id = v.visit_id
+            WHERE a.owner_id = ?
+              AND a.status = 'completed'
+            ORDER BY a.start_time DESC
+            """;
+        return jdbc.queryForList(sql, ownerId);
+    }
+
     public List<Appointment> findByVet(int vetId) {
         String sql = """
             SELECT a.*, p.name as pet_name, v.full_name as vet_name,

@@ -8,8 +8,27 @@ function statusBadge(status) {
   return <span className={`badge ${map[status] || 'badge-gray'}`}>{status}</span>
 }
 
+function severityBadge(severity) {
+  const map = { mild: 'badge-green', moderate: 'badge-yellow', severe: 'badge-red' }
+  return severity
+    ? <span className={`badge ${map[severity] || 'badge-gray'}`}>{severity}</span>
+    : <span className="text-sm text-muted">-</span>
+}
+
+function paymentBadge(status) {
+  const map = { paid: 'badge-green', unpaid: 'badge-yellow', cancelled: 'badge-red' }
+  return status
+    ? <span className={`badge ${map[status] || 'badge-gray'}`}>{status}</span>
+    : <span className="text-sm text-muted">-</span>
+}
+
 function formatDate(ts) {
   return new Date(ts).toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' })
+}
+
+function formatMoney(value) {
+  if (value === null || value === undefined) return '-'
+  return `₺${Number(value).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
 }
 
 export default function OwnerDashboard() {
@@ -17,9 +36,15 @@ export default function OwnerDashboard() {
   const [pets, setPets]   = useState([])
   const [appts, setAppts] = useState([])
   const [loading, setLoading] = useState(true)
+  const [visitSummaries, setVisitSummaries] = useState([])
+  const [summariesLoading, setSummariesLoading] = useState(false)
+  const [summariesError, setSummariesError] = useState('')
 
   useEffect(() => {
     if (!user) return
+    setSummariesLoading(true)
+    setSummariesError('')
+
     Promise.all([
       petAPI.getByOwner(user.userId),
       appointmentAPI.getByOwner(user.userId),
@@ -27,6 +52,11 @@ export default function OwnerDashboard() {
       setPets(pRes.data)
       setAppts(aRes.data)
     }).finally(() => setLoading(false))
+
+    appointmentAPI.getVisitSummaries(user.userId)
+      .then(res => setVisitSummaries(res.data))
+      .catch(err => setSummariesError(err.response?.data?.error || 'Failed to load visit summaries.'))
+      .finally(() => setSummariesLoading(false))
   }, [user])
 
   async function cancelAppt(id) {
@@ -120,6 +150,54 @@ export default function OwnerDashboard() {
                           <button className="btn btn-danger btn-sm"
                             onClick={() => cancelAppt(a.apptId)}>Cancel</button>
                         </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )
+          }
+        </div>
+
+        {/* Completed Visit Summaries */}
+        <div className="card mb-4">
+          <h2 className="section-title">Completed Visit Summaries</h2>
+          {summariesLoading
+            ? <div className="spinner" />
+            : summariesError
+            ? <div className="alert alert-error">{summariesError}</div>
+            : visitSummaries.length === 0
+            ? <p className="text-sm text-muted">No completed visit summaries yet.</p>
+            : (
+              <div className="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Date & Time</th>
+                      <th>Reason</th>
+                      <th>Veterinarian</th>
+                      <th>Branch</th>
+                      <th>Diagnosis</th>
+                      <th>Severity</th>
+                      <th>Treatment Notes</th>
+                      <th>Follow-up</th>
+                      <th>Invoice Total</th>
+                      <th>Payment</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {visitSummaries.map(summary => (
+                      <tr key={`${summary.appt_id}-${summary.visit_id}`}>
+                        <td className="text-sm">{formatDate(summary.start_time)}</td>
+                        <td className="text-sm">{summary.reason || '-'}</td>
+                        <td className="text-sm">{summary.veterinarian}</td>
+                        <td className="text-sm">{summary.branch}</td>
+                        <td className="text-sm">{summary.diagnosis || 'No diagnosis recorded'}</td>
+                        <td>{severityBadge(summary.severity)}</td>
+                        <td className="text-sm">{summary.treatment_notes || '-'}</td>
+                        <td className="text-sm">{summary.follow_up_required ? 'Yes' : 'No'}</td>
+                        <td className="font-semibold">{formatMoney(summary.total_bill)}</td>
+                        <td>{paymentBadge(summary.payment_status)}</td>
                       </tr>
                     ))}
                   </tbody>

@@ -31,11 +31,12 @@ export const vetAPI = {
 
 // ── Appointments ──────────────────────────────────────────
 export const appointmentAPI = {
-  getByOwner: (ownerId) => api.get('/appointments', { params: { ownerId } }),
-  getById:    (id)      => api.get(`/appointments/${id}`),
-  create:     (data)    => api.post('/appointments', data),
-  cancel:     (id)      => api.put(`/appointments/${id}/cancel`),
-  complete:   (id)      => api.put(`/appointments/${id}/complete`),
+  getByOwner:        (ownerId) => api.get('/appointments', { params: { ownerId } }),
+  getVisitSummaries: (ownerId) => api.get(`/appointments/owner/${ownerId}/visit-summaries`),
+  getById:           (id)      => api.get(`/appointments/${id}`),
+  create:            (data)    => api.post('/appointments', data),
+  cancel:            (id)      => api.put(`/appointments/${id}/cancel`),
+  complete:          (id)      => api.put(`/appointments/${id}/complete`),
 }
 
 // ── Pets ──────────────────────────────────────────────────

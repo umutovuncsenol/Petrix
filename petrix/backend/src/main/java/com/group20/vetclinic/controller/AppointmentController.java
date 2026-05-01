@@ -2,7 +2,9 @@ package com.group20.vetclinic.controller;
 
 import com.group20.vetclinic.model.Appointment;
 import com.group20.vetclinic.repository.AppointmentRepository;
+import com.group20.vetclinic.security.JwtUtil;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -18,10 +20,23 @@ public class AppointmentController {
     private static final int MAX_DAILY_APPOINTMENTS_PER_VET = 8;
 
     private final AppointmentRepository apptRepo;
+    private final JwtUtil jwtUtil;
 
     @GetMapping
     public List<Appointment> getByOwner(@RequestParam int ownerId) {
         return apptRepo.findByOwner(ownerId);
+    }
+
+    @GetMapping("/owner/{ownerId}/visit-summaries")
+    public ResponseEntity<?> getVisitSummariesByOwner(
+            @PathVariable int ownerId,
+            @RequestHeader(value = "Authorization", required = false) String authHeader
+    ) {
+        if (!isAuthorizedOwner(authHeader, ownerId)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(Map.of("error", "You are not allowed to view visit summaries for this owner."));
+        }
+        return ResponseEntity.ok(apptRepo.findVisitSummariesByOwner(ownerId));
     }
 
     @GetMapping("/{id}")
@@ -75,5 +90,20 @@ public class AppointmentController {
     public ResponseEntity<?> complete(@PathVariable int id) {
         apptRepo.complete(id);
         return ResponseEntity.ok(Map.of("status", "completed"));
+    }
+
+    private boolean isAuthorizedOwner(String authHeader, int ownerId) {
+        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+            return false;
+        }
+
+        try {
+            String token = authHeader.substring(7);
+            Integer tokenUserId = jwtUtil.extractUserId(token);
+            List<String> roles = jwtUtil.extractRoles(token);
+            return tokenUserId != null && tokenUserId == ownerId && roles.contains("OWNER");
+        } catch (Exception e) {
+            return false;
+        }
     }
 }
