@@ -48,6 +48,8 @@ public class VaccinationController {
             );
             // When a next-due date is set, insert a follow-up 'upcoming' record so that
             // once that date passes the OverdueVaccinations view surfaces it correctly.
+            // administered_date must be < next_due_date per schema CHECK constraint,
+            // so we use nextDueDate-1 as the nominal "scheduled" date.
             if (nextDueDate != null) {
                 vaccRepo.createRecord(
                     req.getPlanId(),
@@ -55,7 +57,7 @@ public class VaccinationController {
                     req.getVetId(),
                     null,
                     null,
-                    nextDueDate,
+                    nextDueDate.minusDays(1),
                     nextDueDate,
                     "upcoming",
                     null
