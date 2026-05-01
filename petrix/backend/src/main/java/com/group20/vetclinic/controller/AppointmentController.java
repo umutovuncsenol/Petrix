@@ -15,6 +15,8 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class AppointmentController {
 
+    private static final int MAX_DAILY_APPOINTMENTS_PER_VET = 8;
+
     private final AppointmentRepository apptRepo;
 
     @GetMapping
@@ -39,8 +41,24 @@ public class AppointmentController {
             String start  = (String) body.get("startTime");
             int duration  = body.containsKey("duration") ? (int) body.get("duration") : 30;
             String reason = (String) body.getOrDefault("reason", "");
+            LocalDateTime startTime = LocalDateTime.parse(start);
+
+            if (apptRepo.hasUnpaidBillsForPet(petId)) {
+                return ResponseEntity.badRequest().body(Map.of(
+                        "error",
+                        "This pet has outstanding unpaid bills. Please pay them before booking a new appointment."
+                ));
+            }
+
+            if (apptRepo.countScheduledAppointmentsForVetOnDate(vetId, startTime) >= MAX_DAILY_APPOINTMENTS_PER_VET) {
+                return ResponseEntity.badRequest().body(Map.of(
+                        "error",
+                        "This veterinarian has reached the maximum number of appointments for the selected day."
+                ));
+            }
+
             int id = apptRepo.create(ownerId, petId, vetId, branchId,
-                                     LocalDateTime.parse(start), duration, reason);
+                                     startTime, duration, reason);
             return ResponseEntity.ok(Map.of("apptId", id));
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));

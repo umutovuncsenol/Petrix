@@ -45,6 +45,31 @@ public class AppointmentRepository {
         return id;
     }
 
+    public boolean hasUnpaidBillsForPet(int petId) {
+        String sql = """
+            SELECT COUNT(*)
+            FROM INVOICE i
+            JOIN VISIT v ON i.visit_id = v.visit_id
+            JOIN APPOINTMENT a ON v.appt_id = a.appt_id
+            WHERE a.pet_id = ?
+              AND i.status = 'unpaid'
+            """;
+        Integer count = jdbc.queryForObject(sql, Integer.class, petId);
+        return count != null && count > 0;
+    }
+
+    public int countScheduledAppointmentsForVetOnDate(int vetId, LocalDateTime startTime) {
+        String sql = """
+            SELECT COUNT(*)
+            FROM APPOINTMENT
+            WHERE vet_id = ?
+              AND DATE(start_time) = DATE(?)
+              AND status = 'scheduled'
+            """;
+        Integer count = jdbc.queryForObject(sql, Integer.class, vetId, Timestamp.valueOf(startTime));
+        return count == null ? 0 : count;
+    }
+
     public List<Appointment> findByOwner(int ownerId) {
         String sql = """
             SELECT a.*, p.name as pet_name, v.full_name as vet_name,
