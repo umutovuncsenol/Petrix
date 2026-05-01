@@ -7,6 +7,7 @@ import org.springframework.jdbc.core.RowMapper;
 import org.springframework.stereotype.Repository;
 
 import java.sql.Date;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 
@@ -33,6 +34,30 @@ public class VaccinationRepository {
         return vr;
     };
 
+    public int createPlan(int petId, int vetId) {
+        String sql = "INSERT INTO VACCINATION_PLAN (pet_id, vet_id) VALUES (?, ?) RETURNING plan_id";
+        Integer id = jdbc.queryForObject(sql, Integer.class, petId, vetId);
+        return id;
+    }
+
+    public int createRecord(int planId, int medId, int vetId, Integer visitId,
+                            String batchNumber, LocalDate administeredDate,
+                            LocalDate nextDueDate, String status, String notes) {
+        String sql = """
+            INSERT INTO VACCINATION_RECORD
+                (plan_id, med_id, vet_id, visit_id, batch_number, administered_date, next_due_date, status, notes)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            RETURNING vacc_id
+            """;
+        Integer id = jdbc.queryForObject(sql, Integer.class,
+            planId, medId, vetId, visitId, batchNumber,
+            Date.valueOf(administeredDate),
+            nextDueDate != null ? Date.valueOf(nextDueDate) : null,
+            status != null ? status : "done",
+            notes);
+        return id;
+    }
+
     public List<VaccinationRecord> findByPet(int petId) {
         String sql = """
             SELECT vr.*, m.name AS vaccine_name
@@ -44,6 +69,18 @@ public class VaccinationRepository {
             ORDER BY vr.administered_date DESC
             """;
         return jdbc.query(sql, rowMapper, petId);
+    }
+
+    public List<Map<String, Object>> findOverdueByBranchId(int branchId, int daysThreshold) {
+        return jdbc.queryForList(
+            "SELECT * FROM OverdueVaccinations WHERE branch_id = ? AND days_overdue >= ?",
+            branchId, daysThreshold);
+    }
+
+    public List<Map<String, Object>> findOverdueAll(int daysThreshold) {
+        return jdbc.queryForList(
+            "SELECT * FROM OverdueVaccinations WHERE days_overdue >= ? ORDER BY days_overdue DESC",
+            daysThreshold);
     }
 
     public List<Map<String, Object>> findOverdueByBranch(String branchName, int daysThreshold) {

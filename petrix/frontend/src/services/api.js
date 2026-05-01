@@ -82,4 +82,12 @@ export const inventoryAPI = {
   getReport:      (branchId)       => api.get(`/inventory/reports/branch/${branchId}`),
 }
 
+// ── Vaccinations ──────────────────────────────────────────
+export const vaccinationAPI = {
+  createPlan:    (data)            => api.post('/vaccinations/plans', data),
+  createRecord:  (data)            => api.post('/vaccinations/records', data),
+  getOverdue:    (params)          => api.get('/vaccinations/overdue', { params }),
+  getReport:     (params)          => api.get('/reports/vaccinations', { params }),
+}
+
 export default api

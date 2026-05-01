@@ -15,6 +15,7 @@ import ReportsPage from './pages/ReportsPage'
 import ManagerDashboardPage from './pages/ManagerDashboardPage'
 import AdminDashboardPage from './pages/AdminDashboardPage'
 import InventoryPage from './pages/InventoryPage'
+import VaccinationReportsPage from './pages/VaccinationReportsPage'
 
 function AppRoutes() {
   const { user } = useAuth()
@@ -60,6 +61,13 @@ function AppRoutes() {
         } />
         <Route path="/inventory" element={
           <ProtectedRoute allowedRoles={['VET', 'CLINIC_MANAGER']}><InventoryPage /></ProtectedRoute>
+        } />
+
+        {/* Vaccination reports */}
+        <Route path="/vaccination-reports" element={
+          <ProtectedRoute allowedRoles={['VET', 'CLINIC_MANAGER', 'ADMIN']}>
+            <VaccinationReportsPage />
+          </ProtectedRoute>
         } />
 
         {/* Role-based admin/manager routes */}

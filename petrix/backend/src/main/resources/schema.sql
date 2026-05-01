@@ -355,7 +355,8 @@ SELECT
     CURRENT_DATE - vr.next_due_date AS days_overdue,
     vr.status,
     vet.full_name        AS administering_vet,
-    b.name               AS branch_name
+    b.name               AS branch_name,
+    b.branch_id
 FROM VACCINATION_RECORD vr
 JOIN VACCINATION_PLAN vp ON vr.plan_id  = vp.plan_id
 JOIN PET p               ON vp.pet_id   = p.pet_id

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useAuth } from '../context/AuthContext'
-import { vetAPI, visitAPI, petAPI, inventoryAPI } from '../services/api'
+import { vetAPI, visitAPI, petAPI, inventoryAPI, vaccinationAPI } from '../services/api'
 
 function statusBadge(s) {
   const map = { scheduled: 'badge-green', completed: 'badge-gray', cancelled: 'badge-red' }
@@ -20,6 +20,8 @@ export default function VetDashboardPage() {
   const [visitStep, setVisitStep] = useState(null) // null | 'diagnosis' | 'prescription' | 'invoice'
   const [visitId,  setVisitId]  = useState(null)
   const [branchId, setBranchId] = useState(null)
+  const [overdue,  setOverdue]  = useState([])
+  const [overdueLoading, setOverdueLoading] = useState(false)
 
   // Forms
   const [diagForm, setDiagForm] = useState({ description: '', icdCode: '', severity: 'mild', treatmentNotes: '', followUpRequired: false })
@@ -31,6 +33,12 @@ export default function VetDashboardPage() {
 
   useEffect(() => {
     vetAPI.getAppointments(user.userId).then(r => setAppts(r.data)).finally(() => setLoading(false))
+    if (user.branchId) {
+      setOverdueLoading(true)
+      vaccinationAPI.getOverdue({ branchId: user.branchId, threshold: 0 })
+        .then(r => setOverdue(r.data))
+        .finally(() => setOverdueLoading(false))
+    }
   }, [user])
 
   async function openAppointment(appt) {
@@ -298,6 +306,42 @@ export default function VetDashboardPage() {
               </div>
             </div>
           )}
+        </div>
+
+        {/* Overdue Vaccination Alerts */}
+        <div className="card mt-4">
+          <h2 className="section-title">Overdue Vaccination Alerts — My Branch</h2>
+          {overdueLoading
+            ? <div className="spinner" />
+            : overdue.length === 0
+            ? <p className="text-sm text-muted">No overdue vaccinations for your branch.</p>
+            : (
+              <div className="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Pet</th><th>Species</th><th>Owner</th><th>Owner Email</th>
+                      <th>Last Administered</th><th>Next Due</th><th>Days Overdue</th><th>Vet</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {overdue.map((r, i) => (
+                      <tr key={i}>
+                        <td className="font-semibold">{r.pet_name}</td>
+                        <td className="text-sm">{r.species}{r.breed ? ` · ${r.breed}` : ''}</td>
+                        <td className="text-sm">{r.owner_name}</td>
+                        <td className="text-sm text-muted">{r.email}</td>
+                        <td className="text-sm">{r.administered_date ? new Date(r.administered_date).toLocaleDateString() : '—'}</td>
+                        <td className="text-sm">{r.next_due_date ? new Date(r.next_due_date).toLocaleDateString() : '—'}</td>
+                        <td><span className="badge badge-red">{r.days_overdue}d</span></td>
+                        <td className="text-sm">{r.administering_vet}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )
+          }
         </div>
       </div>
     </div>
