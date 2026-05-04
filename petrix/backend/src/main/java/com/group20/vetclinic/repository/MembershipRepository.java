@@ -63,17 +63,19 @@ public class MembershipRepository {
     }
 
     public int cancel(int ownerId, int planId) {
-        return cancelActive(ownerId);
+        return jdbc.update("""
+            UPDATE ENROLLS
+            SET status='cancelled',
+                end_date=GREATEST(CURRENT_DATE, start_date) + INTERVAL '1 day'
+            WHERE owner_id=? AND plan_id=? AND status='active'
+            """, ownerId, planId);
     }
 
     private int cancelActive(int ownerId) {
         return jdbc.update("""
             UPDATE ENROLLS
             SET status='cancelled',
-                end_date=CASE
-                    WHEN CURRENT_DATE > start_date THEN CURRENT_DATE
-                    ELSE start_date + 1
-                END
+                end_date=GREATEST(CURRENT_DATE, start_date) + INTERVAL '1 day'
             WHERE owner_id=? AND status='active'
             """, ownerId);
     }

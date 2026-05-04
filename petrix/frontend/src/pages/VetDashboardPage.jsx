@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useAuth } from '../context/AuthContext'
-import { vetAPI, visitAPI, petAPI, inventoryAPI, vaccinationAPI } from '../services/api'
+import api, { vetAPI, visitAPI, petAPI, inventoryAPI, vaccinationAPI, appointmentAPI } from '../services/api'
 import ReferralModal from '../components/ReferralModal'
 
 function statusBadge(s) {
@@ -32,6 +32,15 @@ export default function VetDashboardPage() {
   const [invoiceForm, setInvoiceForm] = useState({ consultationFee: '200', treatmentCosts: '0', medicationCosts: '0' })
   const [msg,      setMsg]      = useState('')
   const [error,    setError]    = useState('')
+  const [vaccines, setVaccines] = useState([])
+  const [vaccForm, setVaccForm] = useState({
+    medId: '', dosage: '', batchNumber: '',
+    administeredDate: new Date().toISOString().split('T')[0],
+    nextDueDate: '', bookFollowUp: true, followUpTime: '10:00',
+  })
+  const [vaccMsg,        setVaccMsg]        = useState('')
+  const [vaccError,      setVaccError]      = useState('')
+  const [vaccSubmitting, setVaccSubmitting] = useState(false)
 
   useEffect(() => {
     vetAPI.getAppointments(user.userId).then(r => setAppts(r.data)).finally(() => setLoading(false))
@@ -62,8 +71,12 @@ export default function VetDashboardPage() {
       setVisitId(res.data.visitId)
       setAppts(prev => prev.map(a => a.apptId === selected.apptId ? { ...a, status: 'completed' } : a))
       setVisitStep('diagnosis')
-      const meds = await inventoryAPI.getMedications()
-      setMedications(meds.data)
+      const [medsRes, vaccsRes] = await Promise.all([
+        inventoryAPI.getMedications(),
+        api.get('/vaccinations/vaccines'),
+      ])
+      setMedications(medsRes.data)
+      setVaccines(vaccsRes.data)
     } catch (e) {
       setError('Could not start visit: ' + (e.response?.data?.error || e.message))
     }
@@ -109,6 +122,79 @@ export default function VetDashboardPage() {
       setReferralOpen(false)
     } catch (e) {
       setError('Failed to generate invoice.')
+    }
+  }
+
+  function onVaccMedChange(medId) {
+    const vacc = vaccines.find(v => String(v.med_id) === medId)
+    let nextDueDate = ''
+    if (vacc?.frequency_months && vaccForm.administeredDate) {
+      const d = new Date(vaccForm.administeredDate)
+      d.setMonth(d.getMonth() + vacc.frequency_months)
+      nextDueDate = d.toISOString().split('T')[0]
+    }
+    setVaccForm(f => ({ ...f, medId, nextDueDate }))
+  }
+
+  function onVaccAdminDateChange(date) {
+    const vacc = vaccines.find(v => String(v.med_id) === vaccForm.medId)
+    let nextDueDate = vaccForm.nextDueDate
+    if (vacc?.frequency_months && date) {
+      const d = new Date(date)
+      d.setMonth(d.getMonth() + vacc.frequency_months)
+      nextDueDate = d.toISOString().split('T')[0]
+    }
+    setVaccForm(f => ({ ...f, administeredDate: date, nextDueDate }))
+  }
+
+  async function recordVaccination() {
+    if (!vaccForm.medId) { setVaccError('Please select a vaccine.'); return }
+    setVaccSubmitting(true)
+    setVaccError('')
+    setVaccMsg('')
+    try {
+      const plansRes = await api.get('/vaccinations/plans', { params: { petId: selected.petId, vetId: user.userId } })
+      let planId
+      if (plansRes.data.length > 0) {
+        planId = plansRes.data[0].plan_id
+      } else {
+        const planRes = await vaccinationAPI.createPlan({ petId: selected.petId, vetId: user.userId })
+        planId = planRes.data.planId
+      }
+      await vaccinationAPI.createRecord({
+        planId,
+        medId: parseInt(vaccForm.medId),
+        vetId: user.userId,
+        visitId,
+        batchNumber: vaccForm.batchNumber || null,
+        administeredDate: vaccForm.administeredDate,
+        nextDueDate: vaccForm.nextDueDate || null,
+        status: 'done',
+        notes: vaccForm.dosage || null,
+      })
+      if (vaccForm.bookFollowUp && vaccForm.nextDueDate) {
+        const vacc = vaccines.find(v => String(v.med_id) === vaccForm.medId)
+        await appointmentAPI.create({
+          ownerId: selected.ownerId,
+          petId: selected.petId,
+          vetId: user.userId,
+          branchId,
+          startTime: `${vaccForm.nextDueDate}T${vaccForm.followUpTime}:00`,
+          duration: 30,
+          reason: `Vaccination: ${vacc?.name || ''}`,
+        })
+      }
+      const vacc = vaccines.find(v => String(v.med_id) === vaccForm.medId)
+      setVaccMsg(
+        vaccForm.bookFollowUp && vaccForm.nextDueDate
+          ? `Vaccination recorded. Follow-up appointment booked for ${vaccForm.nextDueDate}.`
+          : 'Vaccination recorded.'
+      )
+      setVaccForm(f => ({ ...f, medId: '', dosage: '', batchNumber: '', nextDueDate: '' }))
+    } catch (e) {
+      setVaccError('Failed to record vaccination: ' + (e.response?.data?.error || e.message))
+    } finally {
+      setVaccSubmitting(false)
     }
   }
 
@@ -314,6 +400,67 @@ export default function VetDashboardPage() {
                     </p>
                     <button className="btn btn-primary btn-full" onClick={saveInvoice}>
                       Complete visit &amp; generate invoice
+                    </button>
+                  </>
+                )}
+
+                {/* Record Vaccination */}
+                {visitId && (
+                  <>
+                    <hr className="divider" />
+                    <h3 className="font-semibold mb-3">Record Vaccination</h3>
+                    {vaccMsg   && <div className="alert alert-success mb-3">{vaccMsg}</div>}
+                    {vaccError && <div className="alert alert-error mb-3">{vaccError}</div>}
+                    <div className="form-group">
+                      <label>Vaccine</label>
+                      <select value={vaccForm.medId} onChange={e => onVaccMedChange(e.target.value)}>
+                        <option value="">Select vaccine…</option>
+                        {vaccines.map(v => (
+                          <option key={v.med_id} value={v.med_id}>
+                            {v.name}{v.frequency_months ? ` (every ${v.frequency_months} mo)` : ''}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="grid-2">
+                      <div className="form-group">
+                        <label>Dosage</label>
+                        <input placeholder="e.g. 1 ml" value={vaccForm.dosage}
+                          onChange={e => setVaccForm(f => ({ ...f, dosage: e.target.value }))} />
+                      </div>
+                      <div className="form-group">
+                        <label>Batch Number</label>
+                        <input placeholder="Batch #" value={vaccForm.batchNumber}
+                          onChange={e => setVaccForm(f => ({ ...f, batchNumber: e.target.value }))} />
+                      </div>
+                    </div>
+                    <div className="grid-2">
+                      <div className="form-group">
+                        <label>Administered Date</label>
+                        <input type="date" value={vaccForm.administeredDate}
+                          onChange={e => onVaccAdminDateChange(e.target.value)} />
+                      </div>
+                      <div className="form-group">
+                        <label>Next Due Date</label>
+                        <input type="date" value={vaccForm.nextDueDate}
+                          onChange={e => setVaccForm(f => ({ ...f, nextDueDate: e.target.value }))} />
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 mb-3">
+                      <input type="checkbox" id="bookFup" checked={vaccForm.bookFollowUp}
+                        onChange={e => setVaccForm(f => ({ ...f, bookFollowUp: e.target.checked }))}
+                        style={{ width: 'auto' }} />
+                      <label htmlFor="bookFup" className="text-sm">Automatically book follow-up appointment</label>
+                    </div>
+                    {vaccForm.bookFollowUp && (
+                      <div className="form-group" style={{ maxWidth: 200 }}>
+                        <label>Follow-up Time</label>
+                        <input type="time" value={vaccForm.followUpTime}
+                          onChange={e => setVaccForm(f => ({ ...f, followUpTime: e.target.value }))} />
+                      </div>
+                    )}
+                    <button className="btn btn-primary" disabled={vaccSubmitting} onClick={recordVaccination}>
+                      {vaccSubmitting ? 'Recording…' : 'Record Vaccination'}
                     </button>
                   </>
                 )}

@@ -40,6 +40,21 @@ public class VaccinationRepository {
         return id;
     }
 
+    public List<Map<String, Object>> findPlanByPetAndVet(int petId, int vetId) {
+        return jdbc.queryForList(
+            "SELECT plan_id FROM VACCINATION_PLAN WHERE pet_id = ? AND vet_id = ? ORDER BY created_at DESC LIMIT 1",
+            petId, vetId);
+    }
+
+    public List<Map<String, Object>> findAllVaccineDefinitions() {
+        return jdbc.queryForList("""
+            SELECT m.med_id, m.name, v.frequency_months, v.target_species
+            FROM VACCINATION v
+            JOIN MEDICATION m ON v.med_id = m.med_id
+            ORDER BY m.name
+            """);
+    }
+
     public int createRecord(int planId, int medId, int vetId, Integer visitId,
                             String batchNumber, LocalDate administeredDate,
                             LocalDate nextDueDate, String status, String notes) {

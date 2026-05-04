@@ -18,6 +18,16 @@ public class VaccinationController {
 
     private final VaccinationRepository vaccRepo;
 
+    @GetMapping("/plans")
+    public ResponseEntity<?> getPlans(@RequestParam int petId, @RequestParam int vetId) {
+        return ResponseEntity.ok(vaccRepo.findPlanByPetAndVet(petId, vetId));
+    }
+
+    @GetMapping("/vaccines")
+    public ResponseEntity<?> getVaccineDefinitions() {
+        return ResponseEntity.ok(vaccRepo.findAllVaccineDefinitions());
+    }
+
     @PostMapping("/plans")
     public ResponseEntity<?> createPlan(@RequestBody CreatePlanRequest req) {
         try {
