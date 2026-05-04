@@ -111,7 +111,7 @@ export default function ReportsPage() {
             </div>
 
             {/* Waste Summary */}
-            <div className="card">
+            <div className="card mb-4">
               <h2 className="section-title">Waste Summary</h2>
               {report.wasteSummary.length === 0
                 ? <p className="text-sm text-muted">No waste records.</p>
@@ -122,6 +122,8 @@ export default function ReportsPage() {
                         <tr>
                           <th>Medication</th>
                           <th>Total Wasted</th>
+                          <th>Max Single Waste</th>
+                          <th>Min Single Waste</th>
                           <th>Waste Events</th>
                         </tr>
                       </thead>
@@ -130,6 +132,8 @@ export default function ReportsPage() {
                           <tr key={i}>
                             <td>{row.medication_name}</td>
                             <td className="font-semibold">{row.total_wasted}</td>
+                            <td>{row.max_single_waste}</td>
+                            <td>{row.min_single_waste}</td>
                             <td>{row.waste_events}</td>
                           </tr>
                         ))}
@@ -139,6 +143,36 @@ export default function ReportsPage() {
                 )
               }
             </div>
+
+            {/* Branch Waste Comparison (above average branches) */}
+            {report.branchWasteStats && report.branchWasteStats.length > 0 && (
+              <div className="card">
+                <h2 className="section-title">Branch Waste Comparison</h2>
+                <p className="text-xs text-muted mb-3">Branches with waste at or above the system average</p>
+                <div className="table-wrap">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Branch</th>
+                        <th>Total Wasted</th>
+                        <th>Max Single Waste</th>
+                        <th>Min Single Waste</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {report.branchWasteStats.map((row, i) => (
+                        <tr key={i}>
+                          <td className="font-semibold">{row.branch_name}</td>
+                          <td>{row.total_wasted}</td>
+                          <td>{row.max_single_waste}</td>
+                          <td>{row.min_single_waste}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
           </>
         )}
       </div>

@@ -155,10 +155,12 @@ public class InventoryRepository {
             ORDER BY m.name
             """, branchId);
 
-        // Waste statistics
+        // Waste statistics with MAX/MIN per medication
         List<Map<String, Object>> wasteSummary = jdbc.queryForList("""
             SELECT m.name AS medication_name,
                    SUM(wt.quantity_wasted) AS total_wasted,
+                   MAX(wt.quantity_wasted) AS max_single_waste,
+                   MIN(wt.quantity_wasted) AS min_single_waste,
                    COUNT(*) AS waste_events
             FROM WASTE_TRACKING wt
             JOIN MEDICATION m ON wt.med_id = m.med_id
@@ -166,6 +168,25 @@ public class InventoryRepository {
             GROUP BY m.name
             ORDER BY total_wasted DESC
             """, branchId);
+
+        // Branch waste comparison: branches that waste more than average (nested query)
+        List<Map<String, Object>> branchWasteStats = jdbc.queryForList("""
+            SELECT b.name AS branch_name,
+                   SUM(wt.quantity_wasted) AS total_wasted,
+                   MAX(wt.quantity_wasted) AS max_single_waste,
+                   MIN(wt.quantity_wasted) AS min_single_waste
+            FROM WASTE_TRACKING wt
+            JOIN BRANCH b ON wt.branch_id = b.branch_id
+            GROUP BY b.branch_id, b.name
+            HAVING SUM(wt.quantity_wasted) >= (
+                SELECT AVG(branch_total) FROM (
+                    SELECT SUM(quantity_wasted) AS branch_total
+                    FROM WASTE_TRACKING
+                    GROUP BY branch_id
+                ) AS branch_totals
+            )
+            ORDER BY total_wasted DESC
+            """);
 
         // Cost breakdown: prescription medication costs per visit
         List<Map<String, Object>> costBreakdown = jdbc.queryForList("""
@@ -183,6 +204,7 @@ public class InventoryRepository {
         Map<String, Object> report = new java.util.HashMap<>();
         report.put("stockSummary", stockSummary);
         report.put("wasteSummary", wasteSummary);
+        report.put("branchWasteStats", branchWasteStats);
         report.put("costBreakdown", costBreakdown.isEmpty() ? null : costBreakdown.get(0));
         return report;
     }
