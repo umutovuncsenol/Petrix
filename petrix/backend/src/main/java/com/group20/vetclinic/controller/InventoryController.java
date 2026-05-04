@@ -57,6 +57,7 @@ public class InventoryController {
                 request.getMedId(),
                 request.getQuantityToAdd(),
                 request.getExpiryDate(),
+                request.getBatchNumber(),
                 request.getReorderLevel()
         );
         return ResponseEntity.ok("Restocked successfully");

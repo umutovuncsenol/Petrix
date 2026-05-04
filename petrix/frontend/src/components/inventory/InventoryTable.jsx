@@ -46,6 +46,7 @@ export default function InventoryTable({ items, onRestockClick, onExpireClick })
             <th>Unit</th>
             <th>Quantity</th>
             <th>Expiry Date</th>
+            <th>Batches</th>
             <th>Reorder Level</th>
             <th>Status</th>
             <th>Actions</th>
@@ -60,6 +61,7 @@ export default function InventoryTable({ items, onRestockClick, onExpireClick })
               <td>{item.unit || '-'}</td>
               <td>{item.quantity ?? '-'}</td>
               <td>{formatDate(item.expiryDate)}</td>
+              <td>{item.batchSummary || '-'}</td>
               <td>{item.reorderLevel ?? '-'}</td>
               <td>
                 {item.lowStockFlagged ? (

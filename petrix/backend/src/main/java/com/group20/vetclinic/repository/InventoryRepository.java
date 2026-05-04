@@ -32,6 +32,7 @@ public class InventoryRepository {
         try { m.setReorderLevel(rs.getInt("reorder_level")); } catch (Exception ignored) {}
         try { m.setLowStockFlagged(rs.getBoolean("low_stock_flagged")); } catch (Exception ignored) {}
         try { m.setExpiryDate(rs.getString("expiry_date")); } catch (Exception ignored) {}
+        try { m.setBatchSummary(rs.getString("batch_summary")); } catch (Exception ignored) {}
         return m;
     };
 
@@ -45,12 +46,20 @@ public class InventoryRepository {
                    COALESCE(s.quantity, 0) AS quantity,
                    s.reorder_level,
                    COALESCE(s.low_stock_flagged, FALSE) AS low_stock_flagged,
-                   s.expiry_date
+                   s.expiry_date,
+                   bs.batch_summary
             FROM MEDICATION m
             LEFT JOIN STOCKED_AS s ON m.med_id = s.med_id AND s.branch_id = ?
+            LEFT JOIN (
+                SELECT med_id,
+                       STRING_AGG(batch_number || ' (' || quantity || ')', ', ' ORDER BY expiry_date NULLS LAST, batch_number) AS batch_summary
+                FROM STOCK_BATCH
+                WHERE branch_id = ? AND quantity > 0
+                GROUP BY med_id
+            ) bs ON bs.med_id = m.med_id
             ORDER BY m.name
             """;
-        return jdbc.query(sql, medMapper, branchId);
+        return jdbc.query(sql, medMapper, branchId, branchId);
     }
 
     public List<Medication> findStockByBranchFiltered(int branchId, String name, Boolean isVaccine, String expirationStatus) {
@@ -60,12 +69,21 @@ public class InventoryRepository {
                    s.reorder_level,
                    COALESCE(s.low_stock_flagged, FALSE) AS low_stock_flagged,
                    s.expiry_date,
-                   s.minimum_stock_threshold
+                   s.minimum_stock_threshold,
+                   bs.batch_summary
             FROM MEDICATION m
             LEFT JOIN STOCKED_AS s ON m.med_id = s.med_id AND s.branch_id = ?
+            LEFT JOIN (
+                SELECT med_id,
+                       STRING_AGG(batch_number || ' (' || quantity || ')', ', ' ORDER BY expiry_date NULLS LAST, batch_number) AS batch_summary
+                FROM STOCK_BATCH
+                WHERE branch_id = ? AND quantity > 0
+                GROUP BY med_id
+            ) bs ON bs.med_id = m.med_id
             WHERE 1=1
             """);
         List<Object> params = new ArrayList<>();
+        params.add(branchId);
         params.add(branchId);
 
         if (name != null && !name.trim().isEmpty()) {
@@ -90,15 +108,30 @@ public class InventoryRepository {
         return jdbc.query(sql.toString(), medMapper, params.toArray());
     }
 
-    public void restock(int branchId, int medId, int quantityToAdd, String expiryDate, Integer reorderLevel) {
+    @Transactional
+    public void restock(int branchId, int medId, int quantityToAdd, String expiryDate, String batchNumber, Integer reorderLevel) {
+        String normalizedBatchNumber = normalizeBatchNumber(batchNumber);
+        Date sqlExpiryDate = toSqlDate(expiryDate);
+
+        jdbc.update("""
+            INSERT INTO STOCK_BATCH (branch_id, med_id, batch_number, quantity, expiry_date)
+            VALUES (?, ?, ?, ?, ?)
+            ON CONFLICT (branch_id, med_id, batch_number) DO UPDATE
+            SET quantity = STOCK_BATCH.quantity + EXCLUDED.quantity,
+                expiry_date = COALESCE(EXCLUDED.expiry_date, STOCK_BATCH.expiry_date),
+                received_at = now()
+            """, branchId, medId, normalizedBatchNumber, quantityToAdd, sqlExpiryDate);
+
         jdbc.update("""
             INSERT INTO STOCKED_AS (branch_id, med_id, quantity, expiry_date, reorder_level)
-            VALUES (?, ?, ?, ?, ?)
+            SELECT ?, ?, COALESCE(SUM(quantity), 0), MIN(expiry_date), ?
+            FROM STOCK_BATCH
+            WHERE branch_id = ? AND med_id = ? AND quantity > 0
             ON CONFLICT (branch_id, med_id) DO UPDATE
-            SET quantity = STOCKED_AS.quantity + EXCLUDED.quantity,
-                expiry_date = COALESCE(EXCLUDED.expiry_date, STOCKED_AS.expiry_date),
+            SET quantity = EXCLUDED.quantity,
+                expiry_date = EXCLUDED.expiry_date,
                 reorder_level = COALESCE(EXCLUDED.reorder_level, STOCKED_AS.reorder_level)
-            """, branchId, medId, quantityToAdd, toSqlDate(expiryDate), reorderLevel);
+            """, branchId, medId, reorderLevel, branchId, medId);
     }
 
     @Transactional
@@ -116,9 +149,9 @@ public class InventoryRepository {
             throw new IllegalArgumentException("Insufficient stock");
         }
 
-        jdbc.update("""
-            UPDATE STOCKED_AS SET quantity = quantity - ? WHERE branch_id = ? AND med_id = ?
-            """, quantityToRemove, branchId, medId);
+        deductBatchStock(branchId, medId, quantityToRemove);
+        syncStockSummary(branchId, medId, null);
+
         jdbc.update("""
             INSERT INTO WASTE_TRACKING (branch_id, med_id, quantity_wasted, reason)
             VALUES (?, ?, ?, ?)
@@ -135,11 +168,16 @@ public class InventoryRepository {
             """, branchId);
     }
 
+    @Transactional
     public void logWaste(int branchId, int medId, int quantity, String reason) {
         jdbc.update("""
             INSERT INTO WASTE_TRACKING (branch_id, med_id, quantity_wasted, reason)
             VALUES (?, ?, ?, ?)
             """, branchId, medId, quantity, reason);
+        jdbc.update("""
+            UPDATE STOCKED_AS SET quantity = GREATEST(quantity - ?, 0)
+            WHERE branch_id = ? AND med_id = ?
+            """, quantity, branchId, medId);
     }
 
     public List<Map<String, Object>> findWasteByBranch(int branchId) {
@@ -222,5 +260,57 @@ public class InventoryRepository {
             return null;
         }
         return Date.valueOf(LocalDate.parse(value));
+    }
+
+    private String normalizeBatchNumber(String value) {
+        if (value == null || value.trim().isEmpty()) {
+            return "BATCH-" + System.currentTimeMillis();
+        }
+        return value.trim();
+    }
+
+    private void deductBatchStock(int branchId, int medId, int quantityToRemove) {
+        int remaining = quantityToRemove;
+        List<Map<String, Object>> batches = jdbc.queryForList("""
+            SELECT batch_id, quantity
+            FROM STOCK_BATCH
+            WHERE branch_id = ? AND med_id = ? AND quantity > 0
+            ORDER BY expiry_date NULLS LAST, received_at, batch_id
+            """, branchId, medId);
+
+        for (Map<String, Object> batch : batches) {
+            if (remaining <= 0) {
+                break;
+            }
+
+            int batchId = ((Number) batch.get("batch_id")).intValue();
+            int batchQuantity = ((Number) batch.get("quantity")).intValue();
+            int quantityFromBatch = Math.min(batchQuantity, remaining);
+
+            jdbc.update("""
+                UPDATE STOCK_BATCH
+                SET quantity = quantity - ?
+                WHERE batch_id = ?
+                """, quantityFromBatch, batchId);
+
+            remaining -= quantityFromBatch;
+        }
+
+        if (remaining > 0) {
+            throw new IllegalArgumentException("Insufficient batch stock");
+        }
+    }
+
+    private void syncStockSummary(int branchId, int medId, Integer reorderLevel) {
+        jdbc.update("""
+            INSERT INTO STOCKED_AS (branch_id, med_id, quantity, expiry_date, reorder_level)
+            SELECT ?, ?, COALESCE(SUM(quantity), 0), MIN(expiry_date), ?
+            FROM STOCK_BATCH
+            WHERE branch_id = ? AND med_id = ? AND quantity > 0
+            ON CONFLICT (branch_id, med_id) DO UPDATE
+            SET quantity = EXCLUDED.quantity,
+                expiry_date = EXCLUDED.expiry_date,
+                reorder_level = COALESCE(EXCLUDED.reorder_level, STOCKED_AS.reorder_level)
+            """, branchId, medId, reorderLevel, branchId, medId);
     }
 }
