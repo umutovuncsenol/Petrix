@@ -19,4 +19,5 @@ public class Appointment {
     private String vetName;
     private String branchName;
     private String ownerName;
+    private Boolean visitInProgress;
 }

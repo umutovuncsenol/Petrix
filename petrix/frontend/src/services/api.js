@@ -62,6 +62,7 @@ export const visitAPI = {
   addDiagnosis:  (visitId, data)    => api.post(`/visits/${visitId}/diagnoses`, data),
   getDiagnoses:  (visitId)          => api.get(`/visits/${visitId}/diagnoses`),
   addPrescription:(visitId, data)   => api.post(`/visits/${visitId}/prescriptions`, data),
+  getPrescriptions:(visitId)        => api.get(`/visits/${visitId}/prescriptions`),
   createInvoice: (visitId, data)    => api.post(`/visits/${visitId}/invoice`, data),
   getInvoice:    (visitId)          => api.get(`/visits/${visitId}/invoice`),
   payInvoice:    (visitId, data)    => api.post(`/visits/${visitId}/invoice/pay`, data),

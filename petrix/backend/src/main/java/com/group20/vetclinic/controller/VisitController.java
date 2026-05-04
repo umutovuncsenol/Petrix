@@ -1,6 +1,5 @@
 package com.group20.vetclinic.controller;
 
-import com.group20.vetclinic.repository.AppointmentRepository;
 import com.group20.vetclinic.repository.VisitRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -17,16 +16,16 @@ import java.util.Map;
 public class VisitController {
 
     private final VisitRepository visitRepo;
-    private final AppointmentRepository apptRepo;
 
-    /** Create a visit record and mark appointment completed */
+    /** Start or resume a visit record without completing the appointment. */
     @PostMapping
     public ResponseEntity<?> createVisit(@RequestBody Map<String, Object> body) {
         try {
             int apptId  = (int) body.get("apptId");
             String notes = (String) body.getOrDefault("notes", "");
-            int visitId = visitRepo.createVisit(apptId, notes);
-            apptRepo.complete(apptId);
+            int visitId = visitRepo.findByApptId(apptId)
+                    .map(v -> v.getVisitId())
+                    .orElseGet(() -> visitRepo.createVisit(apptId, notes));
             return ResponseEntity.ok(Map.of("visitId", visitId));
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
@@ -56,7 +55,13 @@ public class VisitController {
         String severity     = (String) body.getOrDefault("severity", "");
         String treatment    = (String) body.getOrDefault("treatmentNotes", "");
         boolean followUp    = Boolean.parseBoolean(body.getOrDefault("followUpRequired", false).toString());
-        int id = visitRepo.createDiagnosis(visitId, desc, icd, severity, treatment, followUp);
+        int id = visitRepo.findDiagnosesByVisit(visitId).stream()
+                .findFirst()
+                .map(existing -> {
+                    visitRepo.updateDiagnosis(existing.getDiagnosisId(), desc, icd, severity, treatment, followUp);
+                    return existing.getDiagnosisId();
+                })
+                .orElseGet(() -> visitRepo.createDiagnosis(visitId, desc, icd, severity, treatment, followUp));
         return ResponseEntity.ok(Map.of("diagnosisId", id));
     }
 
@@ -101,7 +106,12 @@ public class VisitController {
         }
     }
 
-    /** Generate invoice */
+    @GetMapping("/{visitId}/prescriptions")
+    public ResponseEntity<?> getPrescriptions(@PathVariable int visitId) {
+        return ResponseEntity.ok(visitRepo.findPrescriptionItemsByVisit(visitId));
+    }
+
+    /** Generate invoice and mark the appointment completed. */
     @PostMapping("/{visitId}/invoice")
     public ResponseEntity<?> createInvoice(@PathVariable int visitId,
                                            @RequestBody Map<String, Object> body) {
@@ -109,6 +119,7 @@ public class VisitController {
         BigDecimal treatment = new BigDecimal(body.get("treatmentCosts").toString());
         BigDecimal meds      = new BigDecimal(body.get("medicationCosts").toString());
         int invoiceId = visitRepo.createInvoice(visitId, consult, treatment, meds);
+        visitRepo.completeAppointmentForVisit(visitId);
         return ResponseEntity.ok(Map.of("invoiceId", invoiceId));
     }
 

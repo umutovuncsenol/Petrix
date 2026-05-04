@@ -34,6 +34,7 @@ public class AppointmentRepository {
         try { a.setVetName(rs.getString("vet_name")); } catch (Exception ignored) {}
         try { a.setBranchName(rs.getString("branch_name")); } catch (Exception ignored) {}
         try { a.setOwnerName(rs.getString("owner_name")); } catch (Exception ignored) {}
+        try { a.setVisitInProgress(rs.getBoolean("visit_in_progress")); } catch (Exception ignored) {}
         return a;
     };
 
@@ -121,7 +122,15 @@ public class AppointmentRepository {
     public List<Appointment> findByVet(int vetId) {
         String sql = """
             SELECT a.*, p.name as pet_name, v.full_name as vet_name,
-                   b.name as branch_name, o.full_name as owner_name
+                   b.name as branch_name, o.full_name as owner_name,
+                   EXISTS (
+                       SELECT 1
+                       FROM VISIT vi
+                       LEFT JOIN INVOICE i ON i.visit_id = vi.visit_id
+                       WHERE vi.appt_id = a.appt_id
+                         AND i.invoice_id IS NULL
+                         AND a.status <> 'cancelled'
+                   ) AS visit_in_progress
             FROM APPOINTMENT a
             JOIN PET p ON a.pet_id = p.pet_id
             JOIN VETERINARIAN v ON a.vet_id = v.vet_id

@@ -3,13 +3,33 @@ import { useAuth } from '../context/AuthContext'
 import api, { vetAPI, visitAPI, petAPI, inventoryAPI, vaccinationAPI, appointmentAPI } from '../services/api'
 import ReferralModal from '../components/ReferralModal'
 
-function statusBadge(s) {
+function statusBadge(appt) {
+  if (appt.visitInProgress) {
+    return <span className="badge badge-yellow">in progress</span>
+  }
+  const s = appt.status
   const map = { scheduled: 'badge-green', completed: 'badge-gray', cancelled: 'badge-red' }
   return <span className={`badge ${map[s] || 'badge-gray'}`}>{s}</span>
 }
 
 function formatDate(ts) {
   return new Date(ts).toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' })
+}
+
+const emptyDiagForm = { description: '', icdCode: '', severity: 'mild', treatmentNotes: '', followUpRequired: false }
+const emptyRxItems = [{ medId: '', dosage: '', durationDays: 7, quantity: 1 }]
+const emptyInvoiceForm = { consultationFee: '200', treatmentCosts: '0', medicationCosts: '0' }
+
+function draftKey(visitId) {
+  return `vet_visit_draft_${visitId}`
+}
+
+function readVisitDraft(visitId) {
+  try {
+    return JSON.parse(localStorage.getItem(draftKey(visitId)))
+  } catch {
+    return null
+  }
 }
 
 export default function VetDashboardPage() {
@@ -20,16 +40,17 @@ export default function VetDashboardPage() {
   const [loading,  setLoading]  = useState(true)
   const [visitStep, setVisitStep] = useState(null) // null | 'diagnosis' | 'prescription' | 'invoice'
   const [visitId,  setVisitId]  = useState(null)
+  const [visitLoading, setVisitLoading] = useState(false)
   const [branchId, setBranchId] = useState(null)
   const [overdue,  setOverdue]  = useState([])
   const [overdueLoading, setOverdueLoading] = useState(false)
   const [referralOpen, setReferralOpen] = useState(false)
 
   // Forms
-  const [diagForm, setDiagForm] = useState({ description: '', icdCode: '', severity: 'mild', treatmentNotes: '', followUpRequired: false })
+  const [diagForm, setDiagForm] = useState(emptyDiagForm)
   const [medications, setMedications] = useState([])
-  const [rxItems,  setRxItems]  = useState([{ medId: '', dosage: '', durationDays: 7, quantity: 1 }])
-  const [invoiceForm, setInvoiceForm] = useState({ consultationFee: '200', treatmentCosts: '0', medicationCosts: '0' })
+  const [rxItems,  setRxItems]  = useState(emptyRxItems)
+  const [invoiceForm, setInvoiceForm] = useState(emptyInvoiceForm)
   const [msg,      setMsg]      = useState('')
   const [error,    setError]    = useState('')
   const [vaccines, setVaccines] = useState([])
@@ -52,24 +73,104 @@ export default function VetDashboardPage() {
     }
   }, [user])
 
+  useEffect(() => {
+    if (!visitId || !visitStep) return
+    localStorage.setItem(draftKey(visitId), JSON.stringify({ visitStep, diagForm, rxItems, invoiceForm }))
+  }, [visitId, visitStep, diagForm, rxItems, invoiceForm])
+
+  function resetVisitForms() {
+    setDiagForm(emptyDiagForm)
+    setRxItems(emptyRxItems)
+    setInvoiceForm(emptyInvoiceForm)
+  }
+
+  async function loadVisitProgress(visit) {
+    setVisitId(visit.visitId)
+
+    const meds = await inventoryAPI.getMedications().catch(() => ({ data: [] }))
+    setMedications(meds.data)
+
+    const [diagnoses, prescriptions, invoice] = await Promise.all([
+      visitAPI.getDiagnoses(visit.visitId).catch(() => ({ data: [] })),
+      visitAPI.getPrescriptions(visit.visitId).catch(() => ({ data: [] })),
+      visitAPI.getInvoice(visit.visitId).catch(() => null),
+    ])
+
+    let nextStep = 'diagnosis'
+    const diagnosis = diagnoses.data?.[0]
+    if (diagnosis) {
+      setDiagForm({
+        description: diagnosis.description || '',
+        icdCode: diagnosis.icdCode || '',
+        severity: diagnosis.severity || 'mild',
+        treatmentNotes: diagnosis.treatmentNotes || '',
+        followUpRequired: !!diagnosis.followUpRequired,
+      })
+      nextStep = 'prescription'
+    }
+
+    if (prescriptions.data?.length > 0) {
+      setRxItems(prescriptions.data.map(item => ({
+        medId: String(item.med_id),
+        dosage: item.dosage || '',
+        durationDays: item.duration_days || 7,
+        quantity: item.quantity || 1,
+      })))
+      nextStep = 'invoice'
+    }
+
+    if (invoice?.data) {
+      localStorage.removeItem(draftKey(visit.visitId))
+      setInvoiceForm({
+        consultationFee: String(invoice.data.consultationFee ?? '200'),
+        treatmentCosts: String(invoice.data.treatmentCosts ?? '0'),
+        medicationCosts: String(invoice.data.medicationCosts ?? '0'),
+      })
+      setVisitStep(null)
+      return
+    }
+
+    const draft = readVisitDraft(visit.visitId)
+    if (draft) {
+      if (draft.diagForm) setDiagForm(draft.diagForm)
+      if (draft.rxItems) setRxItems(draft.rxItems)
+      if (draft.invoiceForm) setInvoiceForm(draft.invoiceForm)
+      if (draft.visitStep) nextStep = draft.visitStep
+    }
+
+    setVisitStep(nextStep)
+  }
+
   async function openAppointment(appt) {
     setSelected(appt)
     setVisitStep(null)
     setVisitId(null)
+    setVisitLoading(true)
+    resetVisitForms()
     setReferralOpen(false)
     setMsg('')
     setError('')
-    const hist = await petAPI.getMedicalHistory(appt.petId).catch(() => ({ data: [] }))
-    setPetHistory(hist.data)
-    // figure out branchId
-    setBranchId(appt.branchId)
+    try {
+      const hist = await petAPI.getMedicalHistory(appt.petId).catch(() => ({ data: [] }))
+      setPetHistory(hist.data)
+      setBranchId(appt.branchId)
+
+      const existingVisit = await visitAPI.getByAppt(appt.apptId).catch(() => null)
+      if (existingVisit?.data) {
+        setSelected(prev => prev ? { ...prev, visitInProgress: appt.status !== 'cancelled' } : prev)
+        await loadVisitProgress(existingVisit.data)
+      }
+    } finally {
+      setVisitLoading(false)
+    }
   }
 
   async function startVisit() {
     try {
       const res = await visitAPI.create({ apptId: selected.apptId, notes: '' })
       setVisitId(res.data.visitId)
-      setAppts(prev => prev.map(a => a.apptId === selected.apptId ? { ...a, status: 'completed' } : a))
+      setSelected(prev => prev ? { ...prev, visitInProgress: true } : prev)
+      setAppts(prev => prev.map(a => a.apptId === selected.apptId ? { ...a, visitInProgress: true } : a))
       setVisitStep('diagnosis')
       const [medsRes, vaccsRes] = await Promise.all([
         inventoryAPI.getMedications(),
@@ -116,6 +217,8 @@ export default function VetDashboardPage() {
   async function saveInvoice() {
     try {
       await visitAPI.createInvoice(visitId, invoiceForm)
+      localStorage.removeItem(draftKey(visitId))
+      setAppts(prev => prev.map(a => a.apptId === selected.apptId ? { ...a, status: 'completed', visitInProgress: false } : a))
       setMsg('Visit completed and invoice generated!')
       setVisitStep(null)
       setSelected(null)
@@ -239,7 +342,7 @@ export default function VetDashboardPage() {
                         <div className="text-xs text-muted">Owner: {a.ownerName} · {formatDate(a.startTime)}</div>
                         {a.reason && <div className="text-xs text-muted">{a.reason}</div>}
                       </div>
-                      {statusBadge(a.status)}
+                      {statusBadge(a)}
                     </div>
                   </div>
                 ))
@@ -292,8 +395,10 @@ export default function VetDashboardPage() {
                   )
                 }
 
+                {visitLoading && <div className="spinner" />}
+
                 {/* Start Visit */}
-                {selected.status === 'scheduled' && visitStep === null && (
+                {selected.status === 'scheduled' && visitStep === null && !visitLoading && (
                   <button className="btn btn-primary" onClick={startVisit}>Start Visit</button>
                 )}
 

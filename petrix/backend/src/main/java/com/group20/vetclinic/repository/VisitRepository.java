@@ -51,6 +51,15 @@ public class VisitRepository {
         return id;
     }
 
+    public void updateDiagnosis(int diagnosisId, String description, String icdCode,
+                                String severity, String treatmentNotes, boolean followUp) {
+        jdbc.update("""
+            UPDATE DIAGNOSIS
+            SET description = ?, icd_code = ?, severity = ?, treatment_notes = ?, follow_up_required = ?
+            WHERE diagnosis_id = ?
+            """, description, icdCode, severity, treatmentNotes, followUp, diagnosisId);
+    }
+
     public List<Diagnosis> findDiagnosesByVisit(int visitId) {
         return jdbc.query("SELECT * FROM DIAGNOSIS WHERE visit_id = ?", (rs, i) -> {
             Diagnosis d = new Diagnosis();
@@ -69,6 +78,23 @@ public class VisitRepository {
         String sql = "INSERT INTO PRESCRIPTION (visit_id, vet_id) VALUES (?,?) RETURNING rx_id";
         Integer id = jdbc.queryForObject(sql, Integer.class, visitId, vetId);
         return id;
+    }
+
+    public List<Map<String, Object>> findPrescriptionItemsByVisit(int visitId) {
+        return jdbc.queryForList("""
+            SELECT
+                p.rx_id,
+                c.med_id,
+                m.name AS medication_name,
+                c.dosage,
+                c.duration_days,
+                c.quantity
+            FROM PRESCRIPTION p
+            JOIN CONTAINS c ON c.rx_id = p.rx_id
+            JOIN MEDICATION m ON m.med_id = c.med_id
+            WHERE p.visit_id = ?
+            ORDER BY p.issued_at, c.med_id
+            """, visitId);
     }
 
     public void addPrescriptionItem(int rxId, int medId, String dosage, int durationDays, int quantity) {
@@ -100,6 +126,14 @@ public class VisitRepository {
         Integer id = jdbc.queryForObject(sql, Integer.class,
             visitId, consultationFee, treatmentCosts, medicationCosts);
         return id;
+    }
+
+    public void completeAppointmentForVisit(int visitId) {
+        jdbc.update("""
+            UPDATE APPOINTMENT
+            SET status = 'completed'
+            WHERE appt_id = (SELECT appt_id FROM VISIT WHERE visit_id = ?)
+            """, visitId);
     }
 
     public Optional<Invoice> findInvoiceByVisit(int visitId) {
