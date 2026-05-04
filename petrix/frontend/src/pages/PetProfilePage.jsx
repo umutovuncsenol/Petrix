@@ -40,7 +40,7 @@ export default function PetProfilePage() {
   const [vets,         setVets]         = useState([])
   const [bookForm,     setBookForm]     = useState({
     medId: '', vetId: '', administeredDate: today(),
-    nextDueDate: '', batchNumber: '', notes: '',
+    nextDueDate: '', batchNumber: '', batchExpiryDate: '', notes: '',
   })
   const [bookMsg,   setBookMsg]   = useState('')
   const [bookError, setBookError] = useState('')
@@ -84,6 +84,14 @@ export default function PetProfilePage() {
       setBookError('Vaccine, vet, and administered date are required.')
       return
     }
+    if (bookForm.batchExpiryDate && !bookForm.batchNumber.trim()) {
+      setBookError('Batch number is required when batch expiry date is provided.')
+      return
+    }
+    if (bookForm.batchExpiryDate && bookForm.batchExpiryDate < bookForm.administeredDate) {
+      setBookError('Batch expiry date cannot be earlier than the administered date.')
+      return
+    }
     setBookBusy(true)
     setBookError('')
     try {
@@ -98,6 +106,7 @@ export default function PetProfilePage() {
         administeredDate: bookForm.administeredDate,
         nextDueDate:      bookForm.nextDueDate || null,
         batchNumber:      bookForm.batchNumber || null,
+        batchExpiryDate:  bookForm.batchExpiryDate || null,
         notes:            bookForm.notes || null,
         status:           'done',
       })
@@ -105,7 +114,7 @@ export default function PetProfilePage() {
       setVaccins(updated.data)
       setBookMsg('Vaccination recorded successfully.')
       setShowBookForm(false)
-      setBookForm({ medId: '', vetId: '', administeredDate: today(), nextDueDate: '', batchNumber: '', notes: '' })
+      setBookForm({ medId: '', vetId: '', administeredDate: today(), nextDueDate: '', batchNumber: '', batchExpiryDate: '', notes: '' })
     } catch (e) {
       setBookError(e.response?.data?.error || 'Failed to record vaccination.')
     } finally {
@@ -257,10 +266,16 @@ export default function PetProfilePage() {
                       onChange={e => setBookForm(f => ({ ...f, batchNumber: e.target.value }))} />
                   </div>
                   <div className="form-group">
-                    <label>Notes <span className="text-muted">(optional)</span></label>
-                    <input placeholder="Any notes…" value={bookForm.notes}
-                      onChange={e => setBookForm(f => ({ ...f, notes: e.target.value }))} />
+                    <label>Batch Expiry Date <span className="text-muted">(optional)</span></label>
+                    <input type="date" value={bookForm.batchExpiryDate}
+                      onChange={e => setBookForm(f => ({ ...f, batchExpiryDate: e.target.value }))} />
                   </div>
+                </div>
+
+                <div className="form-group">
+                  <label>Notes <span className="text-muted">(optional)</span></label>
+                  <input placeholder="Any notes…" value={bookForm.notes}
+                    onChange={e => setBookForm(f => ({ ...f, notes: e.target.value }))} />
                 </div>
 
                 <div className="flex gap-2">
@@ -280,7 +295,7 @@ export default function PetProfilePage() {
                 <div className="table-wrap">
                   <table>
                     <thead>
-                      <tr><th>Vaccine</th><th>Administered</th><th>Batch</th><th>Next Due</th><th>Status</th></tr>
+                      <tr><th>Vaccine</th><th>Administered</th><th>Batch</th><th>Batch Expiry</th><th>Next Due</th><th>Status</th></tr>
                     </thead>
                     <tbody>
                       {vaccins.map(v => (
@@ -288,6 +303,7 @@ export default function PetProfilePage() {
                           <td className="font-semibold">{v.vaccineName}</td>
                           <td className="text-sm">{v.administeredDate ? new Date(v.administeredDate).toLocaleDateString() : '—'}</td>
                           <td className="text-sm text-muted">{v.batchNumber || '—'}</td>
+                          <td className="text-sm">{v.batchExpiryDate ? new Date(v.batchExpiryDate).toLocaleDateString() : '—'}</td>
                           <td className="text-sm">{v.nextDueDate ? new Date(v.nextDueDate).toLocaleDateString() : '—'}</td>
                           <td>{vaccStatusBadge(v.status)}</td>
                         </tr>

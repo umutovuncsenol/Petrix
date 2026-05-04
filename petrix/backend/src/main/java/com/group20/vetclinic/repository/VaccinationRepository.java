@@ -24,6 +24,10 @@ public class VaccinationRepository {
         vr.setMedId(rs.getInt("med_id"));
         vr.setVetId(rs.getInt("vet_id"));
         vr.setBatchNumber(rs.getString("batch_number"));
+        try {
+            Date batchExpiry = rs.getDate("batch_expiry_date");
+            if (batchExpiry != null) vr.setBatchExpiryDate(batchExpiry.toLocalDate());
+        } catch (Exception ignored) {}
         Date adm = rs.getDate("administered_date");
         if (adm != null) vr.setAdministeredDate(adm.toLocalDate());
         Date ndd = rs.getDate("next_due_date");
@@ -41,16 +45,17 @@ public class VaccinationRepository {
     }
 
     public int createRecord(int planId, int medId, int vetId, Integer visitId,
-                            String batchNumber, LocalDate administeredDate,
+                            String batchNumber, LocalDate batchExpiryDate, LocalDate administeredDate,
                             LocalDate nextDueDate, String status, String notes) {
         String sql = """
             INSERT INTO VACCINATION_RECORD
-                (plan_id, med_id, vet_id, visit_id, batch_number, administered_date, next_due_date, status, notes)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                (plan_id, med_id, vet_id, visit_id, batch_number, batch_expiry_date, administered_date, next_due_date, status, notes)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             RETURNING vacc_id
             """;
         Integer id = jdbc.queryForObject(sql, Integer.class,
             planId, medId, vetId, visitId, batchNumber,
+            batchExpiryDate != null ? Date.valueOf(batchExpiryDate) : null,
             Date.valueOf(administeredDate),
             nextDueDate != null ? Date.valueOf(nextDueDate) : null,
             status != null ? status : "done",

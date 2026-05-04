@@ -11,6 +11,7 @@ public class VaccinationRecord {
     private int vetId;
     private Integer visitId;
     private String batchNumber;
+    private LocalDate batchExpiryDate;
     private LocalDate administeredDate;
     private LocalDate nextDueDate;
     private String status;
