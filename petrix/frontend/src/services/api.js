@@ -65,6 +65,7 @@ export const visitAPI = {
   createInvoice: (visitId, data)    => api.post(`/visits/${visitId}/invoice`, data),
   getInvoice:    (visitId)          => api.get(`/visits/${visitId}/invoice`),
   payInvoice:    (visitId, data)    => api.post(`/visits/${visitId}/invoice/pay`, data),
+  getRating:     (visitId)          => api.get(`/visits/${visitId}/rating`),
   rate:          (visitId, data)    => api.post(`/visits/${visitId}/rating`, data),
   refer:         (visitId, data)    => api.post(`/visits/${visitId}/referral`, data),
 }

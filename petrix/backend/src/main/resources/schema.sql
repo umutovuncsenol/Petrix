@@ -372,7 +372,9 @@ WHERE vr.next_due_date < CURRENT_DATE
 
 -- ─── SEED DATA ────────────────────────────────────────────────────────────────
 
-INSERT INTO BRANCH (name, address, phone, email, working_hours) VALUES
+INSERT INTO BRANCH (name, address, phone, email, working_hours)
+SELECT v.name, v.address, v.phone, v.email, v.working_hours
+FROM (VALUES
     ('Adana - Cukurova',       'Toros Mah. Türkkuşu Cad. No:11, Çukurova/Adana',              '+90 322 888 0001', 'cukurova@petrix.com',       'Mon-Fri 08:00-20:00, Sat 09:00-17:00'),
     ('Adana - Seyhan',         'Reşatbey Mah. Atatürk Cad. No:25, Seyhan/Adana',              '+90 322 888 0002', 'seyhan@petrix.com',         'Mon-Fri 08:00-20:00, Sat 09:00-17:00'),
     ('Ankara - Bahcelievler',  'Bahçelievler Mah. 7. Cad. No:5, Çankaya/Ankara',              '+90 312 111 0001', 'bahcelievler@petrix.com',   'Mon-Fri 08:00-20:00, Sat 09:00-18:00'),
@@ -421,7 +423,10 @@ INSERT INTO BRANCH (name, address, phone, email, working_hours) VALUES
     ('Samsun - Ilkadim',       'Kökçüoğlu Mah. Kazımpaşa Cad. No:18, İlkadım/Samsun',      '+90 362 600 0002', 'ilkadim@petrix.com',        'Mon-Fri 08:00-19:00, Sat 09:00-17:00'),
     ('Trabzon - Akcaabat',     'Söğütlü Mah. Atatürk Cad. No:36, Akçaabat/Trabzon',         '+90 462 500 0001', 'akcaabat@petrix.com',       'Mon-Fri 08:00-19:00, Sat 09:00-17:00'),
     ('Trabzon - Ortahisar',    'Kemerkaya Mah. Uzun Sok. No:10, Ortahisar/Trabzon',          '+90 462 500 0002', 'ortahisar@petrix.com',      'Mon-Fri 08:00-19:00, Sat 09:00-17:00')
-ON CONFLICT (name) DO NOTHING;
+) AS v(name, address, phone, email, working_hours)
+WHERE NOT EXISTS (
+    SELECT 1 FROM BRANCH b WHERE b.name = v.name
+);
 
 INSERT INTO MEMBERSHIP_PLAN (name, monthly_fee, perks_description) VALUES
     ('Basic',  199, '5% discount on consultation • Standard appointment slots • Email reminders'),

@@ -58,20 +58,19 @@ export default function OwnerDashboard() {
     }).finally(() => setLoading(false))
 
     appointmentAPI.getVisitSummaries(user.userId)
-      .then(res => {
+      .then(async res => {
         const summaries = res.data
         setVisitSummaries(summaries)
+
         const visitIds = summaries.map(s => s.visit_id).filter(Boolean)
-        return Promise.all(
+        const results = await Promise.all(
           visitIds.map(id =>
             visitAPI.getRating(id)
               .then(r => ({ visitId: id, rating: r.data }))
               .catch(() => null)
           )
         )
-      })
-      .then(results => {
-        if (!results) return
+
         const preloaded = {}
         for (const r of results) {
           if (r) preloaded[r.visitId] = { score: r.rating.score, comment: r.rating.comment || '' }
