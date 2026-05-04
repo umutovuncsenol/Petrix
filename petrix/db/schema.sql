@@ -26,7 +26,7 @@ CREATE TABLE IF NOT EXISTS USER_ROLE (
 -- 1. BRANCH
 CREATE TABLE IF NOT EXISTS BRANCH (
     branch_id    SERIAL PRIMARY KEY,
-    name         VARCHAR(100) NOT NULL,
+    name         VARCHAR(100) NOT NULL UNIQUE,
     address      VARCHAR(255) NOT NULL,
     phone        VARCHAR(20),
     email        VARCHAR(150),
@@ -366,10 +366,72 @@ WHERE vr.next_due_date < CURRENT_DATE
 -- ─── SEED DATA ────────────────────────────────────────────────────────────────
 
 INSERT INTO BRANCH (name, address, phone, email, working_hours) VALUES
-    ('Ankara Çankaya',  'Çankaya Cad. No:12, Ankara',   '+90 312 111 2233', 'cankaya@vetclinic.com',  '08:00-20:00'),
-    ('İstanbul Kadıköy','Bağdat Cad. No:55, İstanbul',  '+90 216 333 4455', 'kadikoy@vetclinic.com',  '09:00-21:00'),
-    ('İzmir Alsancak',  'Kıbrıs Şehitleri Cad. No:7, İzmir','+90 232 555 6677','alsancak@vetclinic.com','08:30-19:30')
-ON CONFLICT DO NOTHING;
+-- Adana (2)
+('Adana - Cukurova',       'Toros Mah. Türkkuşu Cad. No:11, Çukurova/Adana',              '+90 322 888 0001', 'cukurova@petrix.com',       'Mon-Fri 08:00-20:00, Sat 09:00-17:00'),
+('Adana - Seyhan',         'Reşatbey Mah. Atatürk Cad. No:25, Seyhan/Adana',              '+90 322 888 0002', 'seyhan@petrix.com',         'Mon-Fri 08:00-20:00, Sat 09:00-17:00'),
+-- Ankara (6)
+('Ankara - Bahcelievler',  'Bahçelievler Mah. 7. Cad. No:5, Çankaya/Ankara',              '+90 312 111 0001', 'bahcelievler@petrix.com',   'Mon-Fri 08:00-20:00, Sat 09:00-18:00'),
+('Ankara - Cankaya',       'Kızılay Mah. Atatürk Bulvarı No:12, Çankaya/Ankara',          '+90 312 111 0002', 'cankaya@petrix.com',        'Mon-Fri 08:00-20:00, Sat 09:00-18:00'),
+('Ankara - Eryaman',       'Eryaman 4. Etap Mah. Türkmenistan Cad. No:22, Etimesgut/Ankara', '+90 312 111 0003', 'eryaman@petrix.com',    'Mon-Fri 08:00-20:00, Sat 09:00-18:00'),
+('Ankara - Etimesgut',     'Elvankent Mah. Mevlana Bulvarı No:33, Etimesgut/Ankara',      '+90 312 111 0004', 'etimesgut@petrix.com',      'Mon-Fri 08:00-20:00, Sat 09:00-18:00'),
+('Ankara - Kecioren',      'Aktepe Mah. Cumhuriyet Cad. No:45, Keçiören/Ankara',          '+90 312 111 0005', 'kecioren@petrix.com',       'Mon-Fri 08:00-20:00, Sat 09:00-18:00'),
+('Ankara - Yenimahalle',   'Demetevler Mah. İvedik Cad. No:78, Yenimahalle/Ankara',       '+90 312 111 0006', 'yenimahalle@petrix.com',    'Mon-Fri 08:00-20:00, Sat 09:00-18:00'),
+-- Antalya (2)
+('Antalya - Konyaalti',    'Uncalı Mah. Dumlupınar Bulvarı No:13, Konyaaltı/Antalya',     '+90 242 555 0001', 'konyaalti@petrix.com',      'Mon-Fri 08:00-20:00, Sat 09:00-18:00'),
+('Antalya - Muratpasa',    'Meltem Mah. Atatürk Cad. No:46, Muratpaşa/Antalya',           '+90 242 555 0002', 'muratpasa@petrix.com',      'Mon-Fri 08:00-20:00, Sat 09:00-18:00'),
+-- Bursa (2)
+('Bursa - Nilufer',        'Beşevler Mah. Atatürk Cad. No:22, Nilüfer/Bursa',             '+90 224 444 0001', 'nilufer@petrix.com',        'Mon-Fri 08:00-20:00, Sat 09:00-17:00'),
+('Bursa - Osmangazi',      'Heykel Mah. İnönü Cad. No:8, Osmangazi/Bursa',                '+90 224 444 0002', 'osmangazi@petrix.com',      'Mon-Fri 08:00-20:00, Sat 09:00-17:00'),
+-- Denizli (2)
+('Denizli - Merkezefendi', 'Sırakapılar Mah. Delikliçınar Mey. No:6, Merkezefendi/Denizli', '+90 258 200 0001', 'merkezefendi@petrix.com', 'Mon-Fri 08:00-19:00, Sat 09:00-17:00'),
+('Denizli - Pamukkale',    'Kayıhan Mah. Atatürk Cad. No:41, Pamukkale/Denizli',          '+90 258 200 0002', 'pamukkale@petrix.com',      'Mon-Fri 08:00-19:00, Sat 09:00-17:00'),
+-- Erzurum (2)
+('Erzurum - Palandoken',   'Güzelyurt Mah. Havuzbaşı Cad. No:19, Palandöken/Erzurum',    '+90 442 100 0001', 'palandoken@petrix.com',     'Mon-Fri 08:00-19:00, Sat 09:00-16:00'),
+('Erzurum - Yakutiye',     'Cumhuriyet Mah. Terminal Cad. No:33, Yakutiye/Erzurum',       '+90 442 100 0002', 'yakutiye@petrix.com',       'Mon-Fri 08:00-19:00, Sat 09:00-16:00'),
+-- Eskisehir (2)
+('Eskisehir - Odunpazari', 'Orta Mah. Sakarya Cad. No:3, Odunpazarı/Eskişehir',          '+90 222 666 0001', 'odunpazari@petrix.com',     'Mon-Fri 08:00-19:00, Sat 09:00-17:00'),
+('Eskisehir - Tepebasi',   'Emek Mah. İnönü Cad. No:67, Tepebaşı/Eskişehir',             '+90 222 666 0002', 'tepebasi@petrix.com',       'Mon-Fri 08:00-19:00, Sat 09:00-17:00'),
+-- Gaziantep (2)
+('Gaziantep - Sahinbey',   'Gazimuhtarpaşa Mah. Suburcu Cad. No:52, Şahinbey/Gaziantep', '+90 342 300 0001', 'sahinbey@petrix.com',       'Mon-Fri 08:00-20:00, Sat 09:00-17:00'),
+('Gaziantep - Sehitkamil', 'Bağlarbaşı Mah. Atatürk Bulvarı No:88, Şehitkamil/Gaziantep', '+90 342 300 0002', 'sehitkamil@petrix.com',   'Mon-Fri 08:00-20:00, Sat 09:00-17:00'),
+-- Istanbul (10)
+('Istanbul - Atasehir',    'Atatürk Mah. Ertuğrul Gazi Sok. No:14, Ataşehir/İstanbul',   '+90 216 222 0001', 'atasehir@petrix.com',       'Mon-Fri 08:00-21:00, Sat-Sun 09:00-19:00'),
+('Istanbul - Bakirkoy',    'İstasyon Cad. No:31, Bakırköy/İstanbul',                      '+90 212 222 0002', 'bakirkoy@petrix.com',       'Mon-Fri 08:00-21:00, Sat-Sun 09:00-19:00'),
+('Istanbul - Besiktas',    'Barbaros Bulvarı No:42, Beşiktaş/İstanbul',                   '+90 212 222 0003', 'besiktas@petrix.com',       'Mon-Fri 08:00-21:00, Sat-Sun 09:00-19:00'),
+('Istanbul - Beylikduzu',  'Cumhuriyet Mah. E-5 Yanyol No:28, Beylikdüzü/İstanbul',      '+90 212 222 0004', 'beylikduzu@petrix.com',     'Mon-Fri 08:00-21:00, Sat-Sun 09:00-19:00'),
+('Istanbul - Kadikoy',     'Moda Cad. No:18, Kadıköy/İstanbul',                           '+90 216 222 0005', 'kadikoy@petrix.com',        'Mon-Fri 08:00-21:00, Sat-Sun 09:00-19:00'),
+('Istanbul - Maltepe',     'Bağlarbaşı Mah. Bağdat Cad. No:55, Maltepe/İstanbul',        '+90 216 222 0006', 'maltepe@petrix.com',        'Mon-Fri 08:00-21:00, Sat-Sun 09:00-19:00'),
+('Istanbul - Pendik',      'Yenişehir Mah. Ankara Cad. No:77, Pendik/İstanbul',           '+90 216 222 0007', 'pendik@petrix.com',         'Mon-Fri 08:00-21:00, Sat-Sun 09:00-19:00'),
+('Istanbul - Sariyer',     'Maslak Mah. Büyükdere Cad. No:63, Sarıyer/İstanbul',         '+90 212 222 0008', 'sariyer@petrix.com',        'Mon-Fri 08:00-21:00, Sat-Sun 09:00-19:00'),
+('Istanbul - Sisli',       'Halaskargazi Cad. No:101, Şişli/İstanbul',                    '+90 212 222 0009', 'sisli@petrix.com',          'Mon-Fri 08:00-21:00, Sat-Sun 09:00-19:00'),
+('Istanbul - Uskudar',     'Bağlarbaşı Mah. Hakimiyet Cad. No:9, Üsküdar/İstanbul',      '+90 216 222 0010', 'uskudar@petrix.com',        'Mon-Fri 08:00-21:00, Sat-Sun 09:00-19:00'),
+-- Izmir (4)
+('Izmir - Alsancak',       'Kıbrıs Şehitleri Cad. No:84, Alsancak/İzmir',                '+90 232 333 0001', 'alsancak@petrix.com',       'Mon-Fri 08:00-20:00, Sat 09:00-18:00'),
+('Izmir - Bornova',        'Kazımdirik Mah. Mimar Sinan Cad. No:17, Bornova/İzmir',      '+90 232 333 0002', 'bornova@petrix.com',        'Mon-Fri 08:00-20:00, Sat 09:00-18:00'),
+('Izmir - Buca',           'Buca Mah. Adnan Menderes Cad. No:39, Buca/İzmir',            '+90 232 333 0003', 'buca@petrix.com',           'Mon-Fri 08:00-20:00, Sat 09:00-18:00'),
+('Izmir - Karsiyaka',      'Girne Bulvarı No:56, Karşıyaka/İzmir',                       '+90 232 333 0004', 'karsiyaka@petrix.com',      'Mon-Fri 08:00-20:00, Sat 09:00-18:00'),
+-- Kayseri (2)
+('Kayseri - Kocasinan',    'Zümrüt Mah. Sivas Cad. No:64, Kocasinan/Kayseri',            '+90 352 400 0001', 'kocasinan@petrix.com',      'Mon-Fri 08:00-19:00, Sat 09:00-17:00'),
+('Kayseri - Melikgazi',    'Köşk Mah. Osman Kavuncu Cad. No:27, Melikgazi/Kayseri',     '+90 352 400 0002', 'melikgazi@petrix.com',      'Mon-Fri 08:00-19:00, Sat 09:00-17:00'),
+-- Kocaeli (2)
+('Kocaeli - Gebze',        'Güzeller Mah. Şükrü Bey Cad. No:37, Gebze/Kocaeli',          '+90 262 800 0001', 'gebze@petrix.com',          'Mon-Fri 08:00-20:00, Sat 09:00-17:00'),
+('Kocaeli - Izmit',        'Serdar Mah. Körfez Cad. No:23, İzmit/Kocaeli',               '+90 262 800 0002', 'izmit@petrix.com',          'Mon-Fri 08:00-20:00, Sat 09:00-17:00'),
+-- Konya (2)
+('Konya - Meram',          'Abdulaziz Mah. Meram Yeni Yol No:44, Meram/Konya',           '+90 332 777 0001', 'meram@petrix.com',          'Mon-Fri 08:00-19:00, Sat 09:00-17:00'),
+('Konya - Selcuklu',       'Musalla Bağları Mah. Ankara Cad. No:90, Selçuklu/Konya',     '+90 332 777 0002', 'selcuklu@petrix.com',       'Mon-Fri 08:00-19:00, Sat 09:00-17:00'),
+-- Malatya (2)
+('Malatya - Battalgazi',   'Hamidiye Mah. İnönü Cad. No:15, Battalgazi/Malatya',         '+90 422 999 0001', 'battalgazi@petrix.com',     'Mon-Fri 08:00-19:00, Sat 09:00-17:00'),
+('Malatya - Yesilyurt',    'Tecde Mah. Fuzuli Cad. No:7, Yeşilyurt/Malatya',             '+90 422 999 0002', 'yesilyurt@petrix.com',      'Mon-Fri 08:00-19:00, Sat 09:00-17:00'),
+-- Mersin (2)
+('Mersin - Mezitli',       'Davultepe Mah. Gazi Mustafa Kemal Bulvarı No:5, Mezitli/Mersin', '+90 324 700 0001', 'mezitli@petrix.com',   'Mon-Fri 08:00-20:00, Sat 09:00-17:00'),
+('Mersin - Yenisehir',     'Çankaya Mah. Atatürk Cad. No:49, Yenişehir/Mersin',          '+90 324 700 0002', 'yenisehir@petrix.com',      'Mon-Fri 08:00-20:00, Sat 09:00-17:00'),
+-- Samsun (2)
+('Samsun - Atakum',        'Çarşamba Mah. Atatürk Bulvarı No:72, Atakum/Samsun',         '+90 362 600 0001', 'atakum@petrix.com',         'Mon-Fri 08:00-19:00, Sat 09:00-17:00'),
+('Samsun - Ilkadim',       'Kökçüoğlu Mah. Kazımpaşa Cad. No:18, İlkadım/Samsun',      '+90 362 600 0002', 'ilkadim@petrix.com',        'Mon-Fri 08:00-19:00, Sat 09:00-17:00'),
+-- Trabzon (2)
+('Trabzon - Akcaabat',     'Söğütlü Mah. Atatürk Cad. No:36, Akçaabat/Trabzon',         '+90 462 500 0001', 'akcaabat@petrix.com',       'Mon-Fri 08:00-19:00, Sat 09:00-17:00'),
+('Trabzon - Ortahisar',    'Kemerkaya Mah. Uzun Sok. No:10, Ortahisar/Trabzon',          '+90 462 500 0002', 'ortahisar@petrix.com',      'Mon-Fri 08:00-19:00, Sat 09:00-17:00')
+ON CONFLICT (name) DO NOTHING;
 
 INSERT INTO MEMBERSHIP_PLAN (name, monthly_fee, perks_description) VALUES
     ('Basic',  199, '5% discount on consultation • Standard appointment slots • Email reminders'),
