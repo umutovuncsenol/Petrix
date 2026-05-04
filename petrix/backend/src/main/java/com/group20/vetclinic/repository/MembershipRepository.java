@@ -5,6 +5,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -30,16 +31,51 @@ public class MembershipRepository {
         return jdbc.query("SELECT * FROM MEMBERSHIP_PLAN ORDER BY monthly_fee", planMapper);
     }
 
+    @Transactional
     public void enroll(int ownerId, int planId, LocalDate startDate) {
-        jdbc.update(
-            "INSERT INTO ENROLLS (owner_id, plan_id, start_date, status) VALUES (?,?,?,'active') ON CONFLICT DO NOTHING",
-            ownerId, planId, startDate);
+        BigDecimal targetFee = jdbc.queryForObject(
+            "SELECT monthly_fee FROM MEMBERSHIP_PLAN WHERE plan_id = ?",
+            BigDecimal.class,
+            planId);
+        if (targetFee == null) {
+            throw new IllegalArgumentException("Membership plan not found");
+        }
+
+        BigDecimal activeFee = jdbc.queryForObject("""
+            SELECT MAX(mp.monthly_fee)
+            FROM ENROLLS e
+            JOIN MEMBERSHIP_PLAN mp ON mp.plan_id = e.plan_id
+            WHERE e.owner_id = ? AND e.status = 'active'
+            """, BigDecimal.class, ownerId);
+
+        if (activeFee != null && activeFee.compareTo(targetFee) >= 0) {
+            throw new IllegalArgumentException("You already have an equal or higher active membership plan");
+        }
+
+        cancelActive(ownerId);
+
+        jdbc.update("""
+            INSERT INTO ENROLLS (owner_id, plan_id, start_date, status)
+            VALUES (?,?,?,'active')
+            ON CONFLICT (owner_id, plan_id, start_date)
+            DO UPDATE SET status='active', end_date=NULL
+            """, ownerId, planId, startDate);
     }
 
-    public void cancel(int ownerId, int planId) {
-        jdbc.update(
-            "UPDATE ENROLLS SET status='cancelled', end_date=CURRENT_DATE WHERE owner_id=? AND plan_id=? AND status='active'",
-            ownerId, planId);
+    public int cancel(int ownerId, int planId) {
+        return cancelActive(ownerId);
+    }
+
+    private int cancelActive(int ownerId) {
+        return jdbc.update("""
+            UPDATE ENROLLS
+            SET status='cancelled',
+                end_date=CASE
+                    WHEN CURRENT_DATE > start_date THEN CURRENT_DATE
+                    ELSE start_date + 1
+                END
+            WHERE owner_id=? AND status='active'
+            """, ownerId);
     }
 
     public List<Map<String, Object>> findEnrollmentsByOwner(int ownerId) {
