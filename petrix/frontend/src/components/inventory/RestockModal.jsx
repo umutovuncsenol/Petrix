@@ -11,6 +11,7 @@ function getErrorMessage(err) {
 export default function RestockModal({ item, token, onClose, onSuccess }) {
   const [quantityToAdd, setQuantityToAdd] = useState(1)
   const [expiryDate, setExpiryDate] = useState('')
+  const [batchNumber, setBatchNumber] = useState('')
   const [reorderLevel, setReorderLevel] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -28,6 +29,7 @@ export default function RestockModal({ item, token, onClose, onSuccess }) {
         medId: item.medId,
         quantityToAdd: Number(quantityToAdd),
         expiryDate: expiryDate || null,
+        batchNumber: batchNumber.trim() || null,
         reorderLevel: reorderLevel === '' ? null : Number(reorderLevel),
       }, token)
       setSuccess('✓ Restocked successfully')
@@ -70,6 +72,17 @@ export default function RestockModal({ item, token, onClose, onSuccess }) {
               type="date"
               value={expiryDate}
               onChange={(event) => setExpiryDate(event.target.value)}
+            />
+          </label>
+
+          <label className="form-group">
+            <span>Batch Number</span>
+            <input
+              type="text"
+              maxLength="50"
+              placeholder="e.g. RV-2026-04-A"
+              value={batchNumber}
+              onChange={(event) => setBatchNumber(event.target.value)}
             />
           </label>
 

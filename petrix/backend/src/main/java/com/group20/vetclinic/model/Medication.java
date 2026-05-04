@@ -15,4 +15,5 @@ public class Medication {
     private Integer reorderLevel;
     private Boolean lowStockFlagged;
     private String expiryDate;
+    private String batchSummary;
 }

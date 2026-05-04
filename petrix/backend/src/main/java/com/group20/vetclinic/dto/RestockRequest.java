@@ -5,6 +5,7 @@ public class RestockRequest {
     private int medId;
     private int quantityToAdd;
     private String expiryDate;
+    private String batchNumber;
     private Integer reorderLevel;
 
     public int getBranchId() {
@@ -37,6 +38,14 @@ public class RestockRequest {
 
     public void setExpiryDate(String expiryDate) {
         this.expiryDate = expiryDate;
+    }
+
+    public String getBatchNumber() {
+        return batchNumber;
+    }
+
+    public void setBatchNumber(String batchNumber) {
+        this.batchNumber = batchNumber;
     }
 
     public Integer getReorderLevel() {

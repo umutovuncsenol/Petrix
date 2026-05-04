@@ -102,6 +102,17 @@ CREATE TABLE IF NOT EXISTS STOCKED_AS (
     PRIMARY KEY (branch_id, med_id)
 );
 
+CREATE TABLE IF NOT EXISTS STOCK_BATCH (
+    batch_id     SERIAL PRIMARY KEY,
+    branch_id    INTEGER NOT NULL REFERENCES BRANCH(branch_id) ON DELETE CASCADE,
+    med_id       INTEGER NOT NULL REFERENCES MEDICATION(med_id) ON DELETE CASCADE,
+    batch_number VARCHAR(50) NOT NULL,
+    quantity     INTEGER NOT NULL CHECK (quantity >= 0),
+    expiry_date  DATE,
+    received_at  TIMESTAMP NOT NULL DEFAULT now(),
+    UNIQUE (branch_id, med_id, batch_number)
+);
+
 -- 9. APPOINTMENT
 CREATE TABLE IF NOT EXISTS APPOINTMENT (
     appt_id    SERIAL PRIMARY KEY,
@@ -486,3 +497,9 @@ SELECT 2, med_id, 80,  '2027-01-01', 15, 8  FROM MEDICATION ON CONFLICT DO NOTHI
 
 INSERT INTO STOCKED_AS (branch_id, med_id, quantity, expiry_date, reorder_level, minimum_stock_threshold)
 SELECT 3, med_id, 60,  '2027-01-01', 10, 5  FROM MEDICATION ON CONFLICT DO NOTHING;
+
+INSERT INTO STOCK_BATCH (branch_id, med_id, batch_number, quantity, expiry_date)
+SELECT branch_id, med_id, 'INITIAL-' || branch_id || '-' || med_id, quantity, expiry_date
+FROM STOCKED_AS
+WHERE quantity > 0
+ON CONFLICT DO NOTHING;
