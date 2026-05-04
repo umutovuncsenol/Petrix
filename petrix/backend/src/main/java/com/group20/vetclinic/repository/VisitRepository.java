@@ -127,6 +127,11 @@ public class VisitRepository {
             "SELECT * FROM PetMedicalTimeline WHERE pet_id = ? ORDER BY visit_date DESC", petId);
     }
 
+    public Optional<Map<String, Object>> findRatingByVisit(int visitId) {
+        String sql = "SELECT score, comment FROM VET_RATING WHERE visit_id = ?";
+        return jdbc.queryForList(sql, visitId).stream().findFirst();
+    }
+
     public void createRating(int visitId, int ownerId, int vetId, int score, String comment) {
         jdbc.update("""
             INSERT INTO VET_RATING (visit_id, owner_id, vet_id, score, comment)

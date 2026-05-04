@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
-import { petAPI, appointmentAPI } from '../services/api'
+import { petAPI, appointmentAPI, visitAPI } from '../services/api'
 
 function statusBadge(status) {
   const map = { scheduled: 'badge-green', completed: 'badge-gray', cancelled: 'badge-red' }
@@ -39,6 +39,10 @@ export default function OwnerDashboard() {
   const [visitSummaries, setVisitSummaries] = useState([])
   const [summariesLoading, setSummariesLoading] = useState(false)
   const [summariesError, setSummariesError] = useState('')
+  const [payingInvoice, setPayingInvoice] = useState({})
+  const [ratings, setRatings] = useState({})
+  const [ratingForm, setRatingForm] = useState({})
+  const [ratingSubmitting, setRatingSubmitting] = useState({})
 
   useEffect(() => {
     if (!user) return
@@ -54,10 +58,62 @@ export default function OwnerDashboard() {
     }).finally(() => setLoading(false))
 
     appointmentAPI.getVisitSummaries(user.userId)
-      .then(res => setVisitSummaries(res.data))
+      .then(res => {
+        const summaries = res.data
+        setVisitSummaries(summaries)
+        const visitIds = summaries.map(s => s.visit_id).filter(Boolean)
+        return Promise.all(
+          visitIds.map(id =>
+            visitAPI.getRating(id)
+              .then(r => ({ visitId: id, rating: r.data }))
+              .catch(() => null)
+          )
+        )
+      })
+      .then(results => {
+        if (!results) return
+        const preloaded = {}
+        for (const r of results) {
+          if (r) preloaded[r.visitId] = { score: r.rating.score, comment: r.rating.comment || '' }
+        }
+        setRatings(preloaded)
+      })
       .catch(err => setSummariesError(err.response?.data?.error || 'Failed to load visit summaries.'))
       .finally(() => setSummariesLoading(false))
   }, [user])
+
+  async function payInvoice(visitId) {
+    setPayingInvoice(prev => ({ ...prev, [visitId]: true }))
+    try {
+      await visitAPI.payInvoice(visitId, { paymentMethod: 'cash' })
+      setVisitSummaries(prev =>
+        prev.map(s => s.visit_id === visitId ? { ...s, payment_status: 'paid' } : s)
+      )
+    } catch (err) {
+      alert(err.response?.data?.error || 'Failed to pay invoice.')
+    } finally {
+      setPayingInvoice(prev => ({ ...prev, [visitId]: false }))
+    }
+  }
+
+  async function submitRating(visitId, vetId) {
+    const form = ratingForm[visitId] || {}
+    if (!form.score) return
+    setRatingSubmitting(prev => ({ ...prev, [visitId]: true }))
+    try {
+      await visitAPI.rate(visitId, {
+        ownerId: user.userId,
+        vetId,
+        score: form.score,
+        comment: form.comment || '',
+      })
+      setRatings(prev => ({ ...prev, [visitId]: { score: form.score, comment: form.comment || '' } }))
+    } catch (err) {
+      alert(err.response?.data?.error || 'Failed to submit rating.')
+    } finally {
+      setRatingSubmitting(prev => ({ ...prev, [visitId]: false }))
+    }
+  }
 
   async function cancelAppt(id) {
     if (!confirm('Cancel this appointment?')) return
@@ -183,23 +239,98 @@ export default function OwnerDashboard() {
                       <th>Follow-up</th>
                       <th>Invoice Total</th>
                       <th>Payment</th>
+                      <th>Rating</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {visitSummaries.map(summary => (
-                      <tr key={`${summary.appt_id}-${summary.visit_id}`}>
-                        <td className="text-sm">{formatDate(summary.start_time)}</td>
-                        <td className="text-sm">{summary.reason || '-'}</td>
-                        <td className="text-sm">{summary.veterinarian}</td>
-                        <td className="text-sm">{summary.branch}</td>
-                        <td className="text-sm">{summary.diagnosis || 'No diagnosis recorded'}</td>
-                        <td>{severityBadge(summary.severity)}</td>
-                        <td className="text-sm">{summary.treatment_notes || '-'}</td>
-                        <td className="text-sm">{summary.follow_up_required ? 'Yes' : 'No'}</td>
-                        <td className="font-semibold">{formatMoney(summary.total_bill)}</td>
-                        <td>{paymentBadge(summary.payment_status)}</td>
-                      </tr>
-                    ))}
+                    {visitSummaries.map(summary => {
+                      const vetId = appts.find(a => a.apptId === summary.appt_id)?.vetId
+                      const submittedRating = ratings[summary.visit_id]
+                      const form = ratingForm[summary.visit_id] || { score: 0, comment: '' }
+                      return (
+                        <tr key={`${summary.appt_id}-${summary.visit_id}`}>
+                          <td className="text-sm">{formatDate(summary.start_time)}</td>
+                          <td className="text-sm">{summary.reason || '-'}</td>
+                          <td className="text-sm">{summary.veterinarian}</td>
+                          <td className="text-sm">{summary.branch}</td>
+                          <td className="text-sm">{summary.diagnosis || 'No diagnosis recorded'}</td>
+                          <td>{severityBadge(summary.severity)}</td>
+                          <td className="text-sm">{summary.treatment_notes || '-'}</td>
+                          <td className="text-sm">{summary.follow_up_required ? 'Yes' : 'No'}</td>
+                          <td className="font-semibold">{formatMoney(summary.total_bill)}</td>
+                          <td>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 4, alignItems: 'flex-start' }}>
+                              {paymentBadge(summary.payment_status)}
+                              {summary.payment_status === 'unpaid' && (
+                                <button
+                                  className="btn btn-primary btn-sm"
+                                  disabled={!!payingInvoice[summary.visit_id]}
+                                  onClick={() => payInvoice(summary.visit_id)}>
+                                  {payingInvoice[summary.visit_id] ? '...' : 'Pay Invoice'}
+                                </button>
+                              )}
+                            </div>
+                          </td>
+                          <td>
+                            {submittedRating
+                              ? (
+                                <div>
+                                  <span style={{ color: 'var(--green-600)', fontSize: '1rem', letterSpacing: 1 }}>
+                                    {'★'.repeat(submittedRating.score)}{'☆'.repeat(5 - submittedRating.score)}
+                                  </span>
+                                  {submittedRating.comment && (
+                                    <div className="text-sm text-muted" style={{ marginTop: 2 }}>
+                                      {submittedRating.comment}
+                                    </div>
+                                  )}
+                                </div>
+                              )
+                              : (
+                                <div style={{ minWidth: 160 }}>
+                                  <div style={{ display: 'flex', gap: 1, marginBottom: 4 }}>
+                                    {[1, 2, 3, 4, 5].map(s => (
+                                      <button key={s}
+                                        onClick={() => setRatingForm(prev => ({
+                                          ...prev,
+                                          [summary.visit_id]: { ...(prev[summary.visit_id] || { comment: '' }), score: s }
+                                        }))}
+                                        style={{
+                                          background: 'none', border: 'none', cursor: 'pointer',
+                                          fontSize: '1.25rem', padding: '0 1px', lineHeight: 1,
+                                          color: s <= form.score ? 'var(--green-600)' : 'var(--gray-300)'
+                                        }}>
+                                        ★
+                                      </button>
+                                    ))}
+                                  </div>
+                                  <textarea
+                                    rows={2}
+                                    placeholder="Optional comment..."
+                                    value={form.comment}
+                                    onChange={e => setRatingForm(prev => ({
+                                      ...prev,
+                                      [summary.visit_id]: { ...(prev[summary.visit_id] || { score: 0 }), comment: e.target.value }
+                                    }))}
+                                    style={{
+                                      width: '100%', fontSize: '0.75rem', resize: 'vertical',
+                                      padding: '4px', borderRadius: 'var(--radius)',
+                                      border: '1px solid var(--gray-200)', marginBottom: 4,
+                                      boxSizing: 'border-box'
+                                    }}
+                                  />
+                                  <button
+                                    className="btn btn-primary btn-sm"
+                                    disabled={!form.score || !!ratingSubmitting[summary.visit_id]}
+                                    onClick={() => submitRating(summary.visit_id, vetId)}>
+                                    {ratingSubmitting[summary.visit_id] ? '...' : 'Submit'}
+                                  </button>
+                                </div>
+                              )
+                            }
+                          </td>
+                        </tr>
+                      )
+                    })}
                   </tbody>
                 </table>
               </div>
