@@ -12,6 +12,7 @@ export default function MembershipPage() {
   const [plans,    setPlans]    = useState([])
   const [enrollments, setEnrollments] = useState([])
   const [loading,  setLoading]  = useState(true)
+  const [cancelling, setCancelling] = useState(false)
   const [msg,      setMsg]      = useState('')
   const [error,    setError]    = useState('')
 
@@ -25,7 +26,11 @@ export default function MembershipPage() {
     }).finally(() => setLoading(false))
   }, [user])
 
-  const activePlan = enrollments.find(e => e.status === 'active')
+  const visibleEnrollments = enrollments
+    .filter(e => e.status === 'active')
+    .sort((a, b) => parseFloat(b.monthly_fee || 0) - parseFloat(a.monthly_fee || 0))
+  const activePlan = visibleEnrollments[0]
+  const activeFee = parseFloat(activePlan?.monthly_fee || 0)
 
   async function enroll(planId) {
     setMsg('')
@@ -42,10 +47,19 @@ export default function MembershipPage() {
 
   async function cancel() {
     if (!activePlan || !confirm('Cancel your current plan?')) return
-    await membershipAPI.cancel({ ownerId: user.userId, planId: activePlan.plan_id })
-    const e = await membershipAPI.getByOwner(user.userId)
-    setEnrollments(e.data)
-    setMsg('Membership cancelled.')
+    setMsg('')
+    setError('')
+    setCancelling(true)
+    try {
+      await membershipAPI.cancel({ ownerId: user.userId, planId: activePlan.plan_id })
+      const e = await membershipAPI.getByOwner(user.userId)
+      setEnrollments(e.data)
+      setMsg('Membership cancelled.')
+    } catch (err) {
+      setError(err.response?.data?.error || 'Cancellation failed.')
+    } finally {
+      setCancelling(false)
+    }
   }
 
   if (loading) return <div className="page"><div className="container"><div className="spinner" /></div></div>
@@ -69,7 +83,9 @@ export default function MembershipPage() {
                   Active since {new Date(activePlan.start_date).toLocaleDateString()}
                 </p>
               </div>
-              <button className="btn btn-danger btn-sm" onClick={cancel}>Cancel</button>
+              <button className="btn btn-danger btn-sm" onClick={cancel} disabled={cancelling}>
+                {cancelling ? 'Cancelling...' : 'Cancel'}
+              </button>
             </div>
           </div>
         )}
@@ -78,6 +94,7 @@ export default function MembershipPage() {
         <div className="grid-3 mb-4">
           {plans.map(plan => {
             const isCurrent = activePlan?.plan_id === plan.planId
+            const isLowerOrEqual = activePlan && parseFloat(plan.monthlyFee || 0) <= activeFee
             const perks = plan.perksDescription?.split('•').filter(Boolean).map(s => s.trim()) || []
             return (
               <div key={plan.planId} className="card"
@@ -96,24 +113,27 @@ export default function MembershipPage() {
                     </li>
                   ))}
                 </ul>
-                {isCurrent
-                  ? <button className="btn btn-outline btn-full" disabled>Current plan</button>
-                  : <button className="btn btn-primary btn-full" onClick={() => enroll(plan.planId)}>Enroll</button>
-                }
+                {isCurrent && <button className="btn btn-outline btn-full" disabled>Current plan</button>}
+                {!isCurrent && isLowerOrEqual && (
+                  <button className="btn btn-outline btn-full" disabled>Not available</button>
+                )}
+                {!isCurrent && !isLowerOrEqual && (
+                  <button className="btn btn-primary btn-full" onClick={() => enroll(plan.planId)}>Enroll</button>
+                )}
               </div>
             )
           })}
         </div>
 
         {/* Enrollment history */}
-        {enrollments.length > 0 && (
+        {visibleEnrollments.length > 0 && (
           <div className="card">
-            <h2 className="section-title">Enrollment History</h2>
+            <h2 className="section-title">Active Membership</h2>
             <div className="table-wrap">
               <table>
                 <thead><tr><th>Plan</th><th>Start Date</th><th>End Date</th><th>Status</th></tr></thead>
                 <tbody>
-                  {enrollments.map((e, i) => (
+                  {visibleEnrollments.map((e, i) => (
                     <tr key={i}>
                       <td className="font-semibold">{e.plan_name}</td>
                       <td>{new Date(e.start_date).toLocaleDateString()}</td>
