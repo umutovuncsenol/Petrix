@@ -31,31 +31,16 @@ public class VaccinationController {
     @PostMapping("/records")
     public ResponseEntity<?> createRecord(@RequestBody CreateRecordRequest req) {
         try {
-            String batchNumber = req.getBatchNumber() != null && !req.getBatchNumber().isBlank()
-                ? req.getBatchNumber().trim()
-                : null;
             LocalDate administeredDate = LocalDate.parse(req.getAdministeredDate());
             LocalDate nextDueDate = req.getNextDueDate() != null && !req.getNextDueDate().isBlank()
                 ? LocalDate.parse(req.getNextDueDate())
                 : null;
-            LocalDate batchExpiryDate = req.getBatchExpiryDate() != null && !req.getBatchExpiryDate().isBlank()
-                ? LocalDate.parse(req.getBatchExpiryDate())
-                : null;
-
-            if (batchExpiryDate != null && batchNumber == null) {
-                throw new IllegalArgumentException("Batch number is required when batch expiry date is provided.");
-            }
-            if (batchExpiryDate != null && batchExpiryDate.isBefore(administeredDate)) {
-                throw new IllegalArgumentException("Batch expiry date cannot be earlier than the administered date.");
-            }
-
             int vaccId = vaccRepo.createRecord(
                 req.getPlanId(),
                 req.getMedId(),
                 req.getVetId(),
                 req.getVisitId(),
-                batchNumber,
-                batchExpiryDate,
+                req.getBatchNumber(),
                 administeredDate,
                 nextDueDate,
                 "done",
@@ -70,7 +55,6 @@ public class VaccinationController {
                     req.getPlanId(),
                     req.getMedId(),
                     req.getVetId(),
-                    null,
                     null,
                     null,
                     nextDueDate.minusDays(1),

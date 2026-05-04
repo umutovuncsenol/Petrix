@@ -198,18 +198,13 @@ CREATE TABLE IF NOT EXISTS VACCINATION_RECORD (
     vet_id           INTEGER NOT NULL REFERENCES VETERINARIAN(vet_id),
     visit_id         INTEGER REFERENCES VISIT(visit_id),
     batch_number     VARCHAR(50),
-    batch_expiry_date DATE,
     administered_date DATE NOT NULL,
     next_due_date    DATE,
     status           VARCHAR(20) NOT NULL DEFAULT 'done'
                      CHECK (status IN ('done','upcoming','overdue')),
     notes            TEXT,
-    CHECK (next_due_date IS NULL OR next_due_date > administered_date),
-    CHECK (batch_expiry_date IS NULL OR batch_expiry_date >= administered_date)
+    CHECK (next_due_date IS NULL OR next_due_date > administered_date)
 );
-
-ALTER TABLE VACCINATION_RECORD
-    ADD COLUMN IF NOT EXISTS batch_expiry_date DATE;
 
 -- 18. ROOM_CAGE
 CREATE TABLE IF NOT EXISTS ROOM_CAGE (

@@ -9,7 +9,6 @@ public class CreateRecordRequest {
     private int vetId;
     private Integer visitId;
     private String batchNumber;
-    private String batchExpiryDate;
     private String administeredDate;
     private String nextDueDate;
     private String status;
