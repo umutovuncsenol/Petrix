@@ -41,10 +41,13 @@ public class InventoryRepository {
 
     public List<Medication> findStockByBranch(int branchId) {
         String sql = """
-            SELECT m.*, s.quantity, s.reorder_level, s.low_stock_flagged, s.expiry_date
+            SELECT m.*,
+                   COALESCE(s.quantity, 0) AS quantity,
+                   s.reorder_level,
+                   COALESCE(s.low_stock_flagged, FALSE) AS low_stock_flagged,
+                   s.expiry_date
             FROM MEDICATION m
-            JOIN STOCKED_AS s ON m.med_id = s.med_id
-            WHERE s.branch_id = ?
+            LEFT JOIN STOCKED_AS s ON m.med_id = s.med_id AND s.branch_id = ?
             ORDER BY m.name
             """;
         return jdbc.query(sql, medMapper, branchId);
@@ -52,10 +55,15 @@ public class InventoryRepository {
 
     public List<Medication> findStockByBranchFiltered(int branchId, String name, Boolean isVaccine, String expirationStatus) {
         StringBuilder sql = new StringBuilder("""
-            SELECT m.*, s.quantity, s.reorder_level, s.low_stock_flagged, s.expiry_date, s.minimum_stock_threshold
+            SELECT m.*,
+                   COALESCE(s.quantity, 0) AS quantity,
+                   s.reorder_level,
+                   COALESCE(s.low_stock_flagged, FALSE) AS low_stock_flagged,
+                   s.expiry_date,
+                   s.minimum_stock_threshold
             FROM MEDICATION m
-            JOIN STOCKED_AS s ON m.med_id = s.med_id
-            WHERE s.branch_id = ?
+            LEFT JOIN STOCKED_AS s ON m.med_id = s.med_id AND s.branch_id = ?
+            WHERE 1=1
             """);
         List<Object> params = new ArrayList<>();
         params.add(branchId);
