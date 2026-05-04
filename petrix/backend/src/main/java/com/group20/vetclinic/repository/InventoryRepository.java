@@ -168,11 +168,16 @@ public class InventoryRepository {
             """, branchId);
     }
 
+    @Transactional
     public void logWaste(int branchId, int medId, int quantity, String reason) {
         jdbc.update("""
             INSERT INTO WASTE_TRACKING (branch_id, med_id, quantity_wasted, reason)
             VALUES (?, ?, ?, ?)
             """, branchId, medId, quantity, reason);
+        jdbc.update("""
+            UPDATE STOCKED_AS SET quantity = GREATEST(quantity - ?, 0)
+            WHERE branch_id = ? AND med_id = ?
+            """, quantity, branchId, medId);
     }
 
     public List<Map<String, Object>> findWasteByBranch(int branchId) {

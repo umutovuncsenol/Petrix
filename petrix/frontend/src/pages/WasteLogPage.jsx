@@ -12,11 +12,17 @@ export default function WasteLogPage() {
 
   useEffect(() => {
     branchAPI.getAll().then(r => setBranches(r.data))
-    inventoryAPI.getMedications().then(r => setMedications(r.data))
   }, [])
 
   useEffect(() => {
-    if (!form.branchId) { setWasteLogs([]); return }
+    if (!form.branchId) {
+      setMedications([])
+      setWasteLogs([])
+      return
+    }
+    inventoryAPI.getStock(form.branchId)
+      .then(r => setMedications(r.data))
+      .catch(() => setMedications([]))
     inventoryAPI.getWasteLogs(form.branchId).then(r => setWasteLogs(r.data))
   }, [form.branchId])
 
