@@ -117,6 +117,13 @@ public class VisitController {
         return ResponseEntity.ok(Map.of("status", "paid"));
     }
 
+    @GetMapping("/{visitId}/rating")
+    public ResponseEntity<?> getRating(@PathVariable int visitId) {
+        return visitRepo.findRatingByVisit(visitId)
+                .map(ResponseEntity::ok)
+                .orElse(ResponseEntity.notFound().build());
+    }
+
     /** Rate the vet after a visit */
     @PostMapping("/{visitId}/rating")
     public ResponseEntity<?> rate(@PathVariable int visitId,
