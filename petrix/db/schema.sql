@@ -444,7 +444,17 @@ INSERT INTO MEDICATION (name, form, unit, description, is_vaccine) VALUES
     ('Meloxicam 1mg',     'tablet',    'mg', 'NSAID anti-inflammatory',            FALSE),
     ('Rabies Vaccine',    'injection', 'ml', 'Rabies prevention vaccine',          TRUE),
     ('DHPP Combo',        'injection', 'ml', 'Distemper/Hepatitis/Parvo/Parainfluenza', TRUE),
-    ('Flea Treatment',    'solution',  'ml', 'Topical anti-parasite treatment',    FALSE)
+    ('Flea Treatment',    'solution',  'ml', 'Topical anti-parasite treatment',    FALSE),
+    ('Metronidazole 250mg','tablet',   'mg', 'Antibiotic and antiprotozoal medication', FALSE),
+    ('Cefalexin 500mg',   'capsule',   'mg', 'Antibiotic for skin and soft tissue infections', FALSE),
+    ('Prednisolone 5mg',  'tablet',    'mg', 'Corticosteroid for inflammation control', FALSE),
+    ('Ivermectin',        'solution',  'ml', 'Antiparasitic treatment',            FALSE),
+    ('Feline Leukemia Vaccine', 'injection', 'ml', 'FeLV prevention vaccine',       TRUE),
+    ('Bordetella Vaccine','injection', 'ml', 'Respiratory disease prevention vaccine', TRUE),
+    ('Deworming Tablet',  'tablet',    'dose', 'Internal parasite control',        FALSE),
+    ('Ear Cleaner Solution','solution','ml', 'Ear hygiene and cleaning solution',  FALSE),
+    ('Eye Drops',         'drops',     'ml', 'Ophthalmic care drops',              FALSE),
+    ('Wound Spray',       'spray',     'ml', 'Topical wound care spray',           FALSE)
 ON CONFLICT DO NOTHING;
 
 INSERT INTO VACCINATION (med_id, target_species, frequency_months)
@@ -453,6 +463,14 @@ ON CONFLICT DO NOTHING;
 
 INSERT INTO VACCINATION (med_id, target_species, frequency_months)
 SELECT med_id, 'Dog', 12 FROM MEDICATION WHERE name = 'DHPP Combo'
+ON CONFLICT DO NOTHING;
+
+INSERT INTO VACCINATION (med_id, target_species, frequency_months)
+SELECT med_id, 'Cat', 12 FROM MEDICATION WHERE name = 'Feline Leukemia Vaccine'
+ON CONFLICT DO NOTHING;
+
+INSERT INTO VACCINATION (med_id, target_species, frequency_months)
+SELECT med_id, 'Dog', 12 FROM MEDICATION WHERE name = 'Bordetella Vaccine'
 ON CONFLICT DO NOTHING;
 
 INSERT INTO STOCKED_AS (branch_id, med_id, quantity, expiry_date, reorder_level, minimum_stock_threshold)
