@@ -60,7 +60,7 @@ function AppRoutes() {
           <ProtectedRoute allowedRoles={['VET']}><ReportsPage /></ProtectedRoute>
         } />
         <Route path="/inventory" element={
-          <ProtectedRoute allowedRoles={['VET', 'CLINIC_MANAGER']}><InventoryPage /></ProtectedRoute>
+          <ProtectedRoute allowedRoles={['CLINIC_MANAGER']}><InventoryPage /></ProtectedRoute>
         } />
 
         {/* Vaccination reports */}

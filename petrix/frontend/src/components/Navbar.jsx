@@ -4,7 +4,7 @@ import { useAuth } from '../context/AuthContext'
 export default function Navbar() {
   const { user, logout } = useAuth()
   const navigate = useNavigate()
-  const canViewInventory = user?.role === 'CLINIC_MANAGER' || user?.role === 'VET'
+  const canViewInventory = user?.role === 'CLINIC_MANAGER'
 
   function handleLogout() {
     logout()
@@ -47,12 +47,11 @@ export default function Navbar() {
             {user.role === 'VET' && (
               <>
                 <Link to="/vet-dashboard" className="text-sm font-semibold" style={{ color: 'var(--gray-600)' }}>Dashboard</Link>
-                <Link to="/inventory"     className="text-sm font-semibold" style={{ color: 'var(--gray-600)' }}>Inventory</Link>
                 <Link to="/waste-log"     className="text-sm font-semibold" style={{ color: 'var(--gray-600)' }}>Waste Log</Link>
                 <Link to="/reports"       className="text-sm font-semibold" style={{ color: 'var(--gray-600)' }}>Reports</Link>
               </>
             )}
-            {canViewInventory && user.role !== 'VET' && (
+            {canViewInventory && (
               <Link to="/inventory" className="text-sm font-semibold" style={{ color: 'var(--gray-600)' }}>Inventory</Link>
             )}
           </div>
