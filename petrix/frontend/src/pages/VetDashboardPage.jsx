@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useAuth } from '../context/AuthContext'
 import { vetAPI, visitAPI, petAPI, inventoryAPI, vaccinationAPI } from '../services/api'
+import ReferralModal from '../components/ReferralModal'
 
 function statusBadge(s) {
   const map = { scheduled: 'badge-green', completed: 'badge-gray', cancelled: 'badge-red' }
@@ -22,6 +23,7 @@ export default function VetDashboardPage() {
   const [branchId, setBranchId] = useState(null)
   const [overdue,  setOverdue]  = useState([])
   const [overdueLoading, setOverdueLoading] = useState(false)
+  const [referralOpen, setReferralOpen] = useState(false)
 
   // Forms
   const [diagForm, setDiagForm] = useState({ description: '', icdCode: '', severity: 'mild', treatmentNotes: '', followUpRequired: false })
@@ -44,6 +46,8 @@ export default function VetDashboardPage() {
   async function openAppointment(appt) {
     setSelected(appt)
     setVisitStep(null)
+    setVisitId(null)
+    setReferralOpen(false)
     setMsg('')
     setError('')
     const hist = await petAPI.getMedicalHistory(appt.petId).catch(() => ({ data: [] }))
@@ -102,6 +106,7 @@ export default function VetDashboardPage() {
       setMsg('Visit completed and invoice generated!')
       setVisitStep(null)
       setSelected(null)
+      setReferralOpen(false)
     } catch (e) {
       setError('Failed to generate invoice.')
     }
@@ -169,6 +174,15 @@ export default function VetDashboardPage() {
                 <div className="text-sm text-muted mb-3">
                   Owner: {selected.ownerName} · {formatDate(selected.startTime)}
                 </div>
+
+                {visitId && (
+                  <div className="flex justify-between items-center mb-3">
+                    <span className="text-sm text-muted">Visit #{visitId}</span>
+                    <button className="btn btn-outline btn-sm" onClick={() => setReferralOpen(true)}>
+                      Create Referral
+                    </button>
+                  </div>
+                )}
 
                 {/* Pet Medical History */}
                 <h3 className="font-semibold text-sm mb-2">Pet medical history</h3>
@@ -307,6 +321,14 @@ export default function VetDashboardPage() {
             </div>
           )}
         </div>
+
+        {referralOpen && visitId && (
+          <ReferralModal
+            visitId={visitId}
+            onClose={() => setReferralOpen(false)}
+            onSuccess={() => setMsg('Referral created successfully.')}
+          />
+        )}
 
         {/* Overdue Vaccination Alerts */}
         <div className="card mt-4">

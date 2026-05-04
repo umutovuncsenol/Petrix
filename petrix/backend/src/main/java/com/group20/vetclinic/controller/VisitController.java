@@ -4,6 +4,7 @@ import com.group20.vetclinic.repository.AppointmentRepository;
 import com.group20.vetclinic.repository.VisitRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
@@ -65,6 +66,7 @@ public class VisitController {
     }
 
     /** Create prescription + line items + deduct stock */
+    @Transactional
     @PostMapping("/{visitId}/prescriptions")
     public ResponseEntity<?> addPrescription(@PathVariable int visitId,
                                              @RequestBody Map<String, Object> body) {
@@ -73,6 +75,16 @@ public class VisitController {
             int branchId = (int) body.get("branchId");
             @SuppressWarnings("unchecked")
             List<Map<String, Object>> items = (List<Map<String, Object>>) body.get("items");
+
+            for (Map<String, Object> item : items) {
+                int medId = (int) item.get("medId");
+                int quantity = (int) item.get("quantity");
+                Map<String, Object> stock = visitRepo.findStockForMedication(branchId, medId);
+                int available = stock.get("quantity") == null ? 0 : ((Number) stock.get("quantity")).intValue();
+                if (available < quantity) {
+                    throw new IllegalArgumentException("Insufficient stock for " + stock.get("name"));
+                }
+            }
 
             int rxId = visitRepo.createPrescription(visitId, vetId);
             for (Map<String, Object> item : items) {

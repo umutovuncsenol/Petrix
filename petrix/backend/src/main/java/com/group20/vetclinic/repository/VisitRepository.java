@@ -4,6 +4,7 @@ import com.group20.vetclinic.model.Diagnosis;
 import com.group20.vetclinic.model.Invoice;
 import com.group20.vetclinic.model.Visit;
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.stereotype.Repository;
@@ -78,6 +79,19 @@ public class VisitRepository {
     public void deductStock(int branchId, int medId, int qty) {
         jdbc.update("UPDATE STOCKED_AS SET quantity = quantity - ? WHERE branch_id = ? AND med_id = ?",
                     qty, branchId, medId);
+    }
+
+    public Map<String, Object> findStockForMedication(int branchId, int medId) {
+        try {
+            return jdbc.queryForMap("""
+                SELECT m.name, s.quantity
+                FROM MEDICATION m
+                LEFT JOIN STOCKED_AS s ON s.med_id = m.med_id AND s.branch_id = ?
+                WHERE m.med_id = ?
+                """, branchId, medId);
+        } catch (EmptyResultDataAccessException e) {
+            throw new IllegalArgumentException("Medication not found");
+        }
     }
 
     public int createInvoice(int visitId, BigDecimal consultationFee,
