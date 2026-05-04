@@ -24,17 +24,24 @@ public class MembershipController {
 
     @PostMapping("/enroll")
     public ResponseEntity<?> enroll(@RequestBody Map<String, Object> body) {
-        int ownerId = (int) body.get("ownerId");
-        int planId  = (int) body.get("planId");
-        membershipRepo.enroll(ownerId, planId, LocalDate.now());
-        return ResponseEntity.ok(Map.of("ok", true));
+        try {
+            int ownerId = (int) body.get("ownerId");
+            int planId  = (int) body.get("planId");
+            membershipRepo.enroll(ownerId, planId, LocalDate.now());
+            return ResponseEntity.ok(Map.of("ok", true));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
     }
 
     @PutMapping("/cancel")
     public ResponseEntity<?> cancel(@RequestBody Map<String, Object> body) {
         int ownerId = (int) body.get("ownerId");
         int planId  = (int) body.get("planId");
-        membershipRepo.cancel(ownerId, planId);
+        int updated = membershipRepo.cancel(ownerId, planId);
+        if (updated == 0) {
+            return ResponseEntity.badRequest().body(Map.of("error", "No active membership found to cancel"));
+        }
         return ResponseEntity.ok(Map.of("ok", true));
     }
 
