@@ -16,7 +16,7 @@ export default function RegisterPage() {
   const [loading, setLoading] = useState(false)
 
   useEffect(() => {
-    if (role === 'VET') branchAPI.getAll().then(r => setBranches(r.data))
+    if (role === 'VET' || role === 'CLINIC_MANAGER') branchAPI.getAll().then(r => setBranches(r.data))
   }, [role])
 
   function set(key, val) { setForm(f => ({ ...f, [key]: val })) }
@@ -33,15 +33,21 @@ export default function RegisterPage() {
           fullName: form.fullName, username: form.username,
           email: form.email, password: form.password, phone: form.phone,
         }))
-      } else {
+      } else if (role === 'VET') {
         ({ data } = await authAPI.registerVet({
           fullName: form.fullName, username: form.username,
           password: form.password, branchId: parseInt(form.branchId),
           specialization: form.specialization, speciesExpertise: form.speciesExpertise,
         }))
+      } else {
+        ({ data } = await authAPI.registerManager({
+          fullName: form.fullName, username: form.username,
+          email: form.email, password: form.password, phone: form.phone,
+          branchId: parseInt(form.branchId),
+        }))
       }
       login(data)
-      navigate(role === 'VET' ? '/vet-dashboard' : '/')
+      navigate(role === 'VET' ? '/vet-dashboard' : role === 'CLINIC_MANAGER' ? '/manager-dashboard' : '/')
     } catch (err) {
       setError(err.response?.data?.error || 'Registration failed.')
     } finally {
@@ -59,12 +65,12 @@ export default function RegisterPage() {
 
         {/* Role toggle */}
         <div style={{ display: 'flex', gap: '.5rem', marginBottom: '1.25rem' }}>
-          {['OWNER', 'VET'].map(r => (
+          {['OWNER', 'VET', 'CLINIC_MANAGER'].map(r => (
             <button key={r} type="button"
               onClick={() => setRole(r)}
               className={`btn btn-sm ${role === r ? 'btn-primary' : 'btn-outline'}`}
               style={{ flex: 1 }}>
-              {r === 'OWNER' ? 'Pet Owner' : 'Veterinarian'}
+              {r === 'OWNER' ? 'Pet Owner' : r === 'VET' ? 'Veterinarian' : 'Manager'}
             </button>
           ))}
         </div>
@@ -95,7 +101,7 @@ export default function RegisterPage() {
               onChange={e => set('username', e.target.value)} required />
           </div>
 
-          {role === 'OWNER' && (
+          {(role === 'OWNER' || role === 'CLINIC_MANAGER') && (
             <>
               <div className="form-group">
                 <label>Email</label>
@@ -110,7 +116,7 @@ export default function RegisterPage() {
             </>
           )}
 
-          {role === 'VET' && (
+          {(role === 'VET' || role === 'CLINIC_MANAGER') && (
             <>
               <div className="form-group">
                 <label>Branch</label>
@@ -119,18 +125,20 @@ export default function RegisterPage() {
                   {branches.map(b => <option key={b.branchId} value={b.branchId}>{b.name}</option>)}
                 </select>
               </div>
-              <div className="grid-2">
-                <div className="form-group">
-                  <label>Specialization</label>
-                  <input placeholder="e.g. Surgery" value={form.specialization}
-                    onChange={e => set('specialization', e.target.value)} />
+              {role === 'VET' && (
+                <div className="grid-2">
+                  <div className="form-group">
+                    <label>Specialization</label>
+                    <input placeholder="e.g. Surgery" value={form.specialization}
+                      onChange={e => set('specialization', e.target.value)} />
+                  </div>
+                  <div className="form-group">
+                    <label>Species Expertise</label>
+                    <input placeholder="e.g. Dog, Cat" value={form.speciesExpertise}
+                      onChange={e => set('speciesExpertise', e.target.value)} />
+                  </div>
                 </div>
-                <div className="form-group">
-                  <label>Species Expertise</label>
-                  <input placeholder="e.g. Dog, Cat" value={form.speciesExpertise}
-                    onChange={e => set('speciesExpertise', e.target.value)} />
-                </div>
-              </div>
+              )}
             </>
           )}
 

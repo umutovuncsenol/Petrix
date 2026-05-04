@@ -2,12 +2,14 @@ package com.group20.vetclinic.service;
 
 import com.group20.vetclinic.dto.AuthResponse;
 import com.group20.vetclinic.dto.LoginRequest;
+import com.group20.vetclinic.dto.RegisterManagerRequest;
 import com.group20.vetclinic.dto.RegisterRequest;
 import com.group20.vetclinic.dto.RegisterVetRequest;
 import com.group20.vetclinic.model.Owner;
 import com.group20.vetclinic.model.User;
 import com.group20.vetclinic.model.Veterinarian;
 import com.group20.vetclinic.repository.OwnerRepository;
+import com.group20.vetclinic.repository.RoleRepository;
 import com.group20.vetclinic.repository.UserRepository;
 import com.group20.vetclinic.repository.VetRepository;
 import com.group20.vetclinic.security.JwtUtil;
@@ -24,6 +26,7 @@ public class AuthService {
     private final OwnerRepository ownerRepo;
     private final VetRepository vetRepo;
     private final UserRepository userRepo;
+    private final RoleRepository roleRepo;
     private final JwtUtil jwtUtil;
     private final PasswordEncoder passwordEncoder;
 
@@ -47,6 +50,24 @@ public class AuthService {
         String hash = passwordEncoder.encode(req.getPassword());
         int id = vetRepo.create(req.getFullName(), req.getUsername(), hash, req.getBranchId(), req.getSpecialization(), req.getSpeciesExpertise());
         List<String> roles = List.of("VET");
+        String token = jwtUtil.generateToken(req.getUsername(), roles, id, req.getBranchId());
+        return new AuthResponse(token, roles, id, req.getUsername(), req.getFullName(), req.getBranchId());
+    }
+
+    public AuthResponse registerManager(RegisterManagerRequest req) {
+        if (userRepo.existsByUsername(req.getUsername()) || ownerRepo.existsByUsername(req.getUsername()) || vetRepo.existsByUsername(req.getUsername()))
+            throw new IllegalArgumentException("Username already taken");
+        if (userRepo.existsByEmail(req.getEmail()) || ownerRepo.existsByEmail(req.getEmail()))
+            throw new IllegalArgumentException("Email already registered");
+
+        String hash = passwordEncoder.encode(req.getPassword());
+        int id = userRepo.create(req.getUsername(), hash, req.getFullName(), req.getEmail(), req.getPhone(), req.getBranchId());
+        int roleId = roleRepo.findByName("CLINIC_MANAGER")
+                .orElseThrow(() -> new IllegalStateException("Missing role: CLINIC_MANAGER"))
+                .getId();
+        userRepo.assignRole(id, roleId);
+
+        List<String> roles = List.of("CLINIC_MANAGER");
         String token = jwtUtil.generateToken(req.getUsername(), roles, id, req.getBranchId());
         return new AuthResponse(token, roles, id, req.getUsername(), req.getFullName(), req.getBranchId());
     }

@@ -14,6 +14,11 @@ export const authAPI = {
   login:       (data) => api.post('/auth/login', data),
   register:    (data) => api.post('/auth/register', data),
   registerVet: (data) => api.post('/auth/register/vet', data),
+  registerManager: (data) => api.post('/auth/register/manager', data),
+}
+
+export const adminAPI = {
+  getUsers: () => api.get('/admin/users'),
 }
 
 // ── Branches ──────────────────────────────────────────────

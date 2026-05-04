@@ -2,6 +2,7 @@ package com.group20.vetclinic.controller;
 
 import com.group20.vetclinic.dto.AuthResponse;
 import com.group20.vetclinic.dto.LoginRequest;
+import com.group20.vetclinic.dto.RegisterManagerRequest;
 import com.group20.vetclinic.dto.RegisterRequest;
 import com.group20.vetclinic.dto.RegisterVetRequest;
 import com.group20.vetclinic.service.AuthService;
@@ -32,6 +33,16 @@ public class AuthController {
     public ResponseEntity<?> registerVet(@RequestBody RegisterVetRequest req) {
         try {
             AuthResponse resp = authService.registerVet(req);
+            return ResponseEntity.ok(resp);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    @PostMapping("/register/manager")
+    public ResponseEntity<?> registerManager(@RequestBody RegisterManagerRequest req) {
+        try {
+            AuthResponse resp = authService.registerManager(req);
             return ResponseEntity.ok(resp);
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));

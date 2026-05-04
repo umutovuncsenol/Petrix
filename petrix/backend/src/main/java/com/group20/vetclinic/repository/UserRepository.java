@@ -7,6 +7,7 @@ import org.springframework.jdbc.core.RowMapper;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 @Repository
@@ -51,6 +52,22 @@ public class UserRepository {
                 email
         );
         return count != null && count > 0;
+    }
+
+    public List<Map<String, Object>> findAllWithRoles() {
+        return jdbc.queryForList(
+                """
+                SELECT u.id, u.full_name, u.username, u.email, u.phone, u.branch_id,
+                       b.name AS branch_name,
+                       COALESCE(string_agg(r.name, ', ' ORDER BY r.name), '') AS roles
+                FROM USERS u
+                LEFT JOIN BRANCH b ON b.branch_id = u.branch_id
+                LEFT JOIN USER_ROLE ur ON ur.user_id = u.id
+                LEFT JOIN ROLES r ON r.id = ur.role_id
+                GROUP BY u.id, u.full_name, u.username, u.email, u.phone, u.branch_id, b.name
+                ORDER BY u.id
+                """
+        );
     }
 
     public int create(String username, String passwordHash, String fullName, String email, String phone) {
