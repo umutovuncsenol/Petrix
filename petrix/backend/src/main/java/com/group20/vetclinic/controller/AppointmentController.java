@@ -9,6 +9,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.List;
 import java.util.Map;
 
@@ -58,6 +59,14 @@ public class AppointmentController {
             String reason = (String) body.getOrDefault("reason", "");
             LocalDateTime startTime = LocalDateTime.parse(start);
 
+            if (!canBookSlot(ownerId, startTime.toLocalTime())) {
+                String requiredPlan = isVipSlot(startTime.toLocalTime()) ? "Gold" : "Silver or Gold";
+                return ResponseEntity.badRequest().body(Map.of(
+                        "error",
+                        "This time slot is reserved for " + requiredPlan + " membership plans."
+                ));
+            }
+
             if (apptRepo.hasUnpaidBillsForPet(petId)) {
                 return ResponseEntity.badRequest().body(Map.of(
                         "error",
@@ -105,5 +114,31 @@ public class AppointmentController {
         } catch (Exception e) {
             return false;
         }
+    }
+
+    private boolean canBookSlot(int ownerId, LocalTime time) {
+        String planName = apptRepo.findActiveMembershipPlanName(ownerId).orElse("");
+
+        if (isVipSlot(time)) {
+            return "Gold".equalsIgnoreCase(planName);
+        }
+
+        if (isPrioritySlot(time)) {
+            return "Silver".equalsIgnoreCase(planName) || "Gold".equalsIgnoreCase(planName);
+        }
+
+        return true;
+    }
+
+    private boolean isPrioritySlot(LocalTime time) {
+        return time.equals(LocalTime.of(9, 0))
+                || time.equals(LocalTime.of(9, 30))
+                || time.equals(LocalTime.of(17, 0))
+                || time.equals(LocalTime.of(17, 30));
+    }
+
+    private boolean isVipSlot(LocalTime time) {
+        return time.equals(LocalTime.of(18, 0))
+                || time.equals(LocalTime.of(18, 30));
     }
 }

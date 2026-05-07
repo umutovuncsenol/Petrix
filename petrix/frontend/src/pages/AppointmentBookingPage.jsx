@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
-import { branchAPI, vetAPI, petAPI, appointmentAPI } from '../services/api'
+import { branchAPI, vetAPI, petAPI, appointmentAPI, membershipAPI } from '../services/api'
 
 const HOURS = Array.from({ length: 24 }, (_, i) => i)
 const SLOTS = []
@@ -11,6 +11,28 @@ for (let h = 9; h <= 18; h++) {
 }
 
 const SPECS = ['Any','Cardiology','Surgery','Dermatology','Orthopedics','Internal Medicine','Dentistry','Neurology']
+const PRIORITY_SLOTS = ['09:00', '09:30', '17:00', '17:30']
+const VIP_SLOTS = ['18:00', '18:30']
+
+function slotTier(slot) {
+  if (VIP_SLOTS.includes(slot)) return 'vip'
+  if (PRIORITY_SLOTS.includes(slot)) return 'priority'
+  return 'standard'
+}
+
+function canUseSlot(planName, slot) {
+  const tier = slotTier(slot)
+  if (tier === 'vip') return planName === 'Gold'
+  if (tier === 'priority') return planName === 'Silver' || planName === 'Gold'
+  return true
+}
+
+function slotLabel(slot) {
+  const tier = slotTier(slot)
+  if (tier === 'vip') return 'VIP'
+  if (tier === 'priority') return 'Priority'
+  return ''
+}
 
 function getBookingError(err) {
   const backendMessage = err.response?.data?.message || err.response?.data?.error || ''
@@ -26,6 +48,20 @@ function getBookingError(err) {
     return {
       type: 'blocking',
       message: 'This veterinarian has reached the maximum number of appointments for the selected day. Please choose another date or veterinarian.',
+    }
+  }
+
+  if (backendMessage.includes('reserved for Gold')) {
+    return {
+      type: 'blocking',
+      message: 'This slot is reserved for Gold membership plans.',
+    }
+  }
+
+  if (backendMessage.includes('reserved for Silver or Gold')) {
+    return {
+      type: 'blocking',
+      message: 'This slot is reserved for Silver or Gold membership plans.',
     }
   }
 
@@ -46,6 +82,7 @@ export default function AppointmentBookingPage() {
   const [branches,        setBranches]        = useState([])
   const [vets,            setVets]            = useState([])
   const [pets,            setPets]            = useState([])
+  const [membershipPlan,  setMembershipPlan]  = useState('')
   const [filterBranch,    setFilterBranch]    = useState('')
   const [filterSpec,      setFilterSpec]      = useState('')
   const [filterSpecies,   setFilterSpecies]   = useState('')
@@ -67,6 +104,12 @@ export default function AppointmentBookingPage() {
   useEffect(() => {
     branchAPI.getAll().then(r => setBranches(r.data))
     petAPI.getByOwner(user.userId).then(r => setPets(r.data))
+    membershipAPI.getByOwner(user.userId).then(r => {
+      const activePlan = r.data
+        .filter(e => e.status === 'active')
+        .sort((a, b) => parseFloat(b.monthly_fee || 0) - parseFloat(a.monthly_fee || 0))[0]
+      setMembershipPlan(activePlan?.plan_name || '')
+    })
   }, [user])
 
   async function searchVets() {
@@ -226,17 +269,23 @@ export default function AppointmentBookingPage() {
             <div className="slots">
               {SLOTS.map(slot => {
                 const busy = busySlots.includes(slot)
+                const restricted = !canUseSlot(membershipPlan, slot)
+                const label = slotLabel(slot)
                 return (
                   <button key={slot}
-                    className={`slot ${busy ? 'unavailable' : ''} ${selectedSlot === slot ? 'selected' : ''}`}
+                    className={`slot ${busy || restricted ? 'unavailable' : ''} ${selectedSlot === slot ? 'selected' : ''}`}
                     onClick={() => {
-                      if (!busy) {
+                      if (!busy && !restricted) {
                         setError(null)
                         setSelectedSlot(slot)
                       }
                     }}
-                    disabled={busy}>
+                    disabled={busy || restricted}
+                    title={restricted ? `${label} membership slot` : ''}>
                     {slot}
+                    {label && (
+                      <span className="text-xs" style={{ display: 'block', fontWeight: 600 }}>{label}</span>
+                    )}
                   </button>
                 )
               })}

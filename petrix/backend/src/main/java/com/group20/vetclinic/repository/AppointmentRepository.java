@@ -71,6 +71,19 @@ public class AppointmentRepository {
         return count == null ? 0 : count;
     }
 
+    public Optional<String> findActiveMembershipPlanName(int ownerId) {
+        String sql = """
+            SELECT mp.name
+            FROM ENROLLS e
+            JOIN MEMBERSHIP_PLAN mp ON mp.plan_id = e.plan_id
+            WHERE e.owner_id = ?
+              AND e.status = 'active'
+            ORDER BY mp.monthly_fee DESC, e.start_date DESC
+            LIMIT 1
+            """;
+        return jdbc.query(sql, (rs, i) -> rs.getString("name"), ownerId).stream().findFirst();
+    }
+
     public List<Appointment> findByOwner(int ownerId) {
         String sql = """
             SELECT a.*, p.name as pet_name, v.full_name as vet_name,

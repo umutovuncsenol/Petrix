@@ -10,6 +10,7 @@ import org.springframework.jdbc.core.RowMapper;
 import org.springframework.stereotype.Repository;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -122,10 +123,38 @@ public class VisitRepository {
 
     public int createInvoice(int visitId, BigDecimal consultationFee,
                              BigDecimal treatmentCosts, BigDecimal medicationCosts) {
+        BigDecimal discountedConsultationFee = applyMembershipDiscount(visitId, consultationFee);
         String sql = "INSERT INTO INVOICE (visit_id, consultation_fee, treatment_costs, medication_costs) VALUES (?,?,?,?) RETURNING invoice_id";
         Integer id = jdbc.queryForObject(sql, Integer.class,
-            visitId, consultationFee, treatmentCosts, medicationCosts);
+            visitId, discountedConsultationFee, treatmentCosts, medicationCosts);
         return id;
+    }
+
+    private BigDecimal applyMembershipDiscount(int visitId, BigDecimal consultationFee) {
+        BigDecimal discountRate = jdbc.queryForObject("""
+            SELECT COALESCE(MAX(
+                CASE
+                    WHEN mp.name = 'Basic' THEN 0.05
+                    WHEN mp.name = 'Silver' THEN 0.10
+                    WHEN mp.name = 'Gold' THEN 0.20
+                    ELSE 0
+                END
+            ), 0)
+            FROM VISIT v
+            JOIN APPOINTMENT a ON a.appt_id = v.appt_id
+            JOIN ENROLLS e ON e.owner_id = a.owner_id
+            JOIN MEMBERSHIP_PLAN mp ON mp.plan_id = e.plan_id
+            WHERE v.visit_id = ?
+              AND e.status = 'active'
+            """, BigDecimal.class, visitId);
+
+        if (discountRate == null || discountRate.compareTo(BigDecimal.ZERO) <= 0) {
+            return consultationFee;
+        }
+
+        return consultationFee
+            .multiply(BigDecimal.ONE.subtract(discountRate))
+            .setScale(2, RoundingMode.HALF_UP);
     }
 
     public void completeAppointmentForVisit(int visitId) {
