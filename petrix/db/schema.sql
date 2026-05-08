@@ -224,10 +224,21 @@ CREATE TABLE IF NOT EXISTS ROOM_CAGE (
     room_no   VARCHAR(20) NOT NULL,
     room_type VARCHAR(50),
     capacity  INTEGER CHECK (capacity > 0),
+    nightly_rate NUMERIC(10,2) NOT NULL DEFAULT 400 CHECK (nightly_rate >= 0),
     status    VARCHAR(20) NOT NULL DEFAULT 'available'
               CHECK (status IN ('available','occupied','maintenance')),
     UNIQUE (branch_id, room_no)
 );
+
+ALTER TABLE ROOM_CAGE
+ADD COLUMN IF NOT EXISTS nightly_rate NUMERIC(10,2) NOT NULL DEFAULT 400 CHECK (nightly_rate >= 0);
+
+UPDATE ROOM_CAGE
+SET room_type = 'standard room'
+WHERE room_type IS DISTINCT FROM 'standard room';
+
+UPDATE ROOM_CAGE
+SET nightly_rate = 400;
 
 -- 19. BOARDING_RESERVATION
 CREATE TABLE IF NOT EXISTS BOARDING_RESERVATION (
@@ -497,6 +508,21 @@ SELECT 2, med_id, 80,  '2027-01-01', 15, 8  FROM MEDICATION ON CONFLICT DO NOTHI
 
 INSERT INTO STOCKED_AS (branch_id, med_id, quantity, expiry_date, reorder_level, minimum_stock_threshold)
 SELECT 3, med_id, 60,  '2027-01-01', 10, 5  FROM MEDICATION ON CONFLICT DO NOTHING;
+
+INSERT INTO ROOM_CAGE (branch_id, room_no, room_type, capacity, nightly_rate, status)
+SELECT b.branch_id, v.room_no, v.room_type, v.capacity, v.nightly_rate, v.status
+FROM BRANCH b
+CROSS JOIN (VALUES
+    ('H-101', 'standard room', 1, 400, 'available'),
+    ('H-102', 'standard room', 1, 400, 'available'),
+    ('H-201', 'standard room', 1, 400, 'available')
+) AS v(room_no, room_type, capacity, nightly_rate, status)
+WHERE NOT EXISTS (
+    SELECT 1
+    FROM ROOM_CAGE rc
+    WHERE rc.branch_id = b.branch_id
+      AND rc.room_no = v.room_no
+);
 
 INSERT INTO STOCK_BATCH (branch_id, med_id, batch_number, quantity, expiry_date)
 SELECT branch_id, med_id, 'INITIAL-' || branch_id || '-' || med_id, quantity, expiry_date

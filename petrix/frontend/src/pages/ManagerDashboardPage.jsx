@@ -42,9 +42,14 @@ export default function ManagerDashboardPage() {
             <h1 className="text-2xl font-bold">Manager Dashboard</h1>
             <p className="text-sm text-muted mt-1">Welcome, {user?.fullName}</p>
           </div>
-          <Link to="/vaccination-reports" className="btn btn-outline btn-sm">
-            Vaccination Reports →
-          </Link>
+          <div className="flex gap-2">
+            <Link to="/boarding" className="btn btn-primary btn-sm">
+              Boarding
+            </Link>
+            <Link to="/vaccination-reports" className="btn btn-outline btn-sm">
+              Vaccination Reports →
+            </Link>
+          </div>
         </div>
 
         {/* Overdue Vaccination Alerts */}

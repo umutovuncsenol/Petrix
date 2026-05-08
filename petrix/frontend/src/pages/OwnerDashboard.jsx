@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
-import { petAPI, appointmentAPI, visitAPI } from '../services/api'
+import { petAPI, appointmentAPI, visitAPI, boardingAPI } from '../services/api'
 
 function statusBadge(status) {
   const map = { scheduled: 'badge-green', completed: 'badge-gray', cancelled: 'badge-red' }
@@ -31,6 +31,23 @@ function formatMoney(value) {
   return `₺${Number(value).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
 }
 
+function boardingNights(startDate, endDate) {
+  if (!startDate || !endDate) return 0
+  const start = new Date(`${startDate}T00:00:00`)
+  const end = new Date(`${endDate}T00:00:00`)
+  const nights = Math.round((end - start) / 86400000)
+  return Number.isFinite(nights) && nights > 0 ? nights : 0
+}
+
+function boardingFee(reservation, nights) {
+  return nights * Number(reservation?.nightly_rate ?? 400)
+}
+
+function boardingStatusBadge(status) {
+  const map = { active: 'badge-green', completed: 'badge-gray', cancelled: 'badge-red' }
+  return <span className={`badge ${map[status] || 'badge-gray'}`}>{status}</span>
+}
+
 export default function OwnerDashboard() {
   const { user } = useAuth()
   const [pets, setPets]   = useState([])
@@ -43,6 +60,11 @@ export default function OwnerDashboard() {
   const [ratings, setRatings] = useState({})
   const [ratingForm, setRatingForm] = useState({})
   const [ratingSubmitting, setRatingSubmitting] = useState({})
+  const [boardingReservations, setBoardingReservations] = useState([])
+  const [boardingError, setBoardingError] = useState('')
+  const [boardingLogs, setBoardingLogs] = useState([])
+  const [selectedBoarding, setSelectedBoarding] = useState(null)
+  const [boardingLogsLoading, setBoardingLogsLoading] = useState(false)
 
   useEffect(() => {
     if (!user) return
@@ -52,9 +74,13 @@ export default function OwnerDashboard() {
     Promise.all([
       petAPI.getByOwner(user.userId),
       appointmentAPI.getByOwner(user.userId),
-    ]).then(([pRes, aRes]) => {
+      boardingAPI.getOwnerReservations(user.userId),
+    ]).then(([pRes, aRes, bRes]) => {
       setPets(pRes.data)
       setAppts(aRes.data)
+      setBoardingReservations(bRes.data)
+    }).catch(err => {
+      setBoardingError(err.response?.data?.error || 'Failed to load boarding reservations.')
     }).finally(() => setLoading(false))
 
     appointmentAPI.getVisitSummaries(user.userId)
@@ -80,6 +106,36 @@ export default function OwnerDashboard() {
       .catch(err => setSummariesError(err.response?.data?.error || 'Failed to load visit summaries.'))
       .finally(() => setSummariesLoading(false))
   }, [user])
+
+  async function refreshBoardingReservations() {
+    const res = await boardingAPI.getOwnerReservations(user.userId)
+    setBoardingReservations(res.data)
+  }
+
+  async function cancelBoardingReservation(id) {
+    if (!confirm('Cancel this boarding reservation?')) return
+    try {
+      await boardingAPI.cancelOwnerReservation(user.userId, id)
+      await refreshBoardingReservations()
+    } catch (err) {
+      setBoardingError(err.response?.data?.error || 'Failed to cancel boarding reservation.')
+    }
+  }
+
+  async function viewBoardingLogs(reservation) {
+    setSelectedBoarding(reservation)
+    setBoardingLogsLoading(true)
+    setBoardingError('')
+    try {
+      const res = await boardingAPI.getOwnerFeedingLogs(user.userId, reservation.reservation_id)
+      setBoardingLogs(res.data)
+    } catch (err) {
+      setBoardingLogs([])
+      setBoardingError(err.response?.data?.error || 'Failed to load feeding/care logs.')
+    } finally {
+      setBoardingLogsLoading(false)
+    }
+  }
 
   async function payInvoice(visitId) {
     setPayingInvoice(prev => ({ ...prev, [visitId]: true }))
@@ -134,7 +190,10 @@ export default function OwnerDashboard() {
             <h1 className="text-2xl font-bold">Welcome back, {user.fullName.split(' ')[0]}</h1>
             <p className="text-sm text-muted mt-1">Manage your pets and appointments</p>
           </div>
-          <Link to="/book-appointment" className="btn btn-primary">+ Book Appointment</Link>
+          <div className="flex gap-2">
+            <Link to="/owner/boarding" className="btn btn-outline">Pet Hotel</Link>
+            <Link to="/book-appointment" className="btn btn-primary">+ Book Appointment</Link>
+          </div>
         </div>
 
         {/* Summary cards */}
@@ -179,6 +238,85 @@ export default function OwnerDashboard() {
               </div>
             )
           }
+        </div>
+
+        {/* Pet Boarding */}
+        <div className="card mb-4">
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="section-title" style={{ margin: 0 }}>Pet Boarding / Pet Hotel</h2>
+            <Link to="/owner/boarding" className="btn btn-primary btn-sm">Reserve a Room</Link>
+          </div>
+          {boardingError && <div className="alert alert-error">{boardingError}</div>}
+          {boardingReservations.length === 0
+            ? <p className="text-sm text-muted">No boarding reservations yet.</p>
+            : (
+              <div className="table-wrap">
+                <table>
+                  <thead>
+                    <tr><th>Pet</th><th>Branch</th><th>Room</th><th>Start</th><th>End</th><th>Status</th><th>Estimated Fee</th><th></th></tr>
+                  </thead>
+                  <tbody>
+                    {boardingReservations.map(reservation => {
+                      const nights = boardingNights(reservation.start_date, reservation.end_date)
+                      const fee = boardingFee(reservation, nights)
+                      return (
+                        <tr key={reservation.reservation_id}>
+                          <td className="font-semibold">{reservation.pet_name}</td>
+                          <td>{reservation.branch_name}</td>
+                          <td>{reservation.room_no}</td>
+                          <td>{formatDate(reservation.start_date)}</td>
+                          <td>{formatDate(reservation.end_date)}</td>
+                          <td>{boardingStatusBadge(reservation.status)}</td>
+                          <td>{formatMoney(fee)}</td>
+                          <td>
+                            <div className="flex gap-2" style={{ flexWrap: 'wrap' }}>
+                              {reservation.status === 'active' && (
+                                <button className="btn btn-danger btn-sm" onClick={() => cancelBoardingReservation(reservation.reservation_id)}>
+                                  Cancel
+                                </button>
+                              )}
+                              <button className="btn btn-ghost btn-sm" onClick={() => viewBoardingLogs(reservation)}>
+                                Feeding Logs
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )
+          }
+
+          {selectedBoarding && (
+            <div className="mt-4" style={{ borderTop: '1px solid var(--gray-200)', paddingTop: '1rem' }}>
+              <h3 className="font-semibold mb-2">Feeding/Care Logs for {selectedBoarding.pet_name}</h3>
+              {boardingLogsLoading
+                ? <div className="spinner" />
+                : boardingLogs.length === 0
+                ? <p className="text-sm text-muted">No feeding/care logs recorded yet.</p>
+                : (
+                  <div className="table-wrap">
+                    <table>
+                      <thead><tr><th>Time</th><th>Food</th><th>Amount</th><th>Medication</th><th>Notes</th></tr></thead>
+                      <tbody>
+                        {boardingLogs.map(log => (
+                          <tr key={log.feed_id}>
+                            <td>{formatDate(log.feed_time)}</td>
+                            <td>{log.food || '-'}</td>
+                            <td>{log.amount || '-'}</td>
+                            <td>{log.medication_note || '-'}</td>
+                            <td>{log.notes || '-'}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )
+              }
+            </div>
+          )}
         </div>
 
         {/* Upcoming Appointments */}

@@ -16,6 +16,8 @@ import ManagerDashboardPage from './pages/ManagerDashboardPage'
 import AdminDashboardPage from './pages/AdminDashboardPage'
 import InventoryPage from './pages/InventoryPage'
 import VaccinationReportsPage from './pages/VaccinationReportsPage'
+import BoardingPage from './pages/BoardingPage'
+import OwnerBoardingPage from './pages/OwnerBoardingPage'
 
 function AppRoutes() {
   const { user } = useAuth()
@@ -48,6 +50,9 @@ function AppRoutes() {
         <Route path="/membership" element={
           <ProtectedRoute allowedRoles={['OWNER']}><MembershipPage /></ProtectedRoute>
         } />
+        <Route path="/owner/boarding" element={
+          <ProtectedRoute allowedRoles={['OWNER']}><OwnerBoardingPage /></ProtectedRoute>
+        } />
 
         {/* Vet routes */}
         <Route path="/vet-dashboard" element={
@@ -61,6 +66,9 @@ function AppRoutes() {
         } />
         <Route path="/inventory" element={
           <ProtectedRoute allowedRoles={['CLINIC_MANAGER']}><InventoryPage /></ProtectedRoute>
+        } />
+        <Route path="/boarding" element={
+          <ProtectedRoute allowedRoles={['CLINIC_MANAGER', 'ADMIN']}><BoardingPage /></ProtectedRoute>
         } />
 
         {/* Vaccination reports */}

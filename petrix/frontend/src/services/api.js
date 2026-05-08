@@ -89,6 +89,25 @@ export const inventoryAPI = {
   getReport:      (branchId)       => api.get(`/inventory/reports/branch/${branchId}`),
 }
 
+// ── Boarding ─────────────────────────────────────────────
+export const boardingAPI = {
+  getRooms:            (params)    => api.get('/boarding/rooms', { params }),
+  createRoom:          (data)      => api.post('/boarding/rooms', data),
+  updateRoom:          (id, data)  => api.put(`/boarding/rooms/${id}`, data),
+  getAvailableRooms:   (params)    => api.get('/boarding/rooms/available', { params }),
+  createReservation:   (data)      => api.post('/boarding/reservations', data),
+  getReservations:     (params)    => api.get('/boarding/reservations', { params }),
+  cancelReservation:   (id)        => api.put(`/boarding/reservations/${id}/cancel`),
+  completeReservation: (id)        => api.put(`/boarding/reservations/${id}/complete`),
+  addFeedingLog:       (id, data)  => api.post(`/boarding/reservations/${id}/feeding-logs`, data),
+  getFeedingLogs:      (id)        => api.get(`/boarding/reservations/${id}/feeding-logs`),
+  getOwnerPets:        (ownerId)   => api.get(`/boarding/owner/${ownerId}/pets`),
+  getOwnerReservations:(ownerId)   => api.get(`/boarding/owner/${ownerId}/reservations`),
+  createOwnerReservation: (ownerId, data) => api.post(`/boarding/owner/${ownerId}/reservations`, data),
+  cancelOwnerReservation: (ownerId, id)   => api.put(`/boarding/owner/${ownerId}/reservations/${id}/cancel`),
+  getOwnerFeedingLogs: (ownerId, id)      => api.get(`/boarding/owner/${ownerId}/reservations/${id}/feeding-logs`),
+}
+
 // ── Vaccinations ──────────────────────────────────────────
 export const vaccinationAPI = {
   createPlan:    (data)            => api.post('/vaccinations/plans', data),
