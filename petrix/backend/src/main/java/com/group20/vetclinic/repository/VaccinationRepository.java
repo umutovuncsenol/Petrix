@@ -103,4 +103,8 @@ public class VaccinationRepository {
             "SELECT * FROM OverdueVaccinations WHERE branch_name = ? AND days_overdue > ?",
             branchName, daysThreshold);
     }
+
+    public void deleteRecord(int vaccId) {
+        jdbc.update("DELETE FROM VACCINATION_RECORD WHERE vacc_id=?", vaccId);
+    }
 }

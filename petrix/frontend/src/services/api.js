@@ -36,7 +36,7 @@ export const vetAPI = {
 
 // ── Appointments ──────────────────────────────────────────
 export const appointmentAPI = {
-  getByOwner:        (ownerId) => api.get('/appointments', { params: { ownerId } }),
+  getByOwner:        (ownerId, params) => api.get('/appointments', { params: { ownerId, ...params } }),
   getVisitSummaries: (ownerId) => api.get(`/appointments/owner/${ownerId}/visit-summaries`),
   getById:           (id)      => api.get(`/appointments/${id}`),
   create:            (data)    => api.post('/appointments', data),
@@ -49,6 +49,8 @@ export const petAPI = {
   getByOwner:       (ownerId) => api.get(`/pets/owner/${ownerId}`),
   getById:          (id)      => api.get(`/pets/${id}`),
   create:           (data)    => api.post('/pets', data),
+  update:           (id, data) => api.put(`/pets/${id}`, data),
+  delete:           (id)      => api.delete(`/pets/${id}`),
   getAllergies:      (id)      => api.get(`/pets/${id}/allergies`),
   getVaccinations:  (id)      => api.get(`/pets/${id}/vaccinations`),
   getMedicalHistory:(id)      => api.get(`/pets/${id}/medical-timeline`),
@@ -112,6 +114,7 @@ export const boardingAPI = {
 export const vaccinationAPI = {
   createPlan:    (data)            => api.post('/vaccinations/plans', data),
   createRecord:  (data)            => api.post('/vaccinations/records', data),
+  deleteRecord:  (id)              => api.delete(`/vaccinations/records/${id}`),
   getOverdue:    (params)          => api.get('/vaccinations/overdue', { params }),
   getReport:     (params)          => api.get('/reports/vaccinations', { params }),
 }

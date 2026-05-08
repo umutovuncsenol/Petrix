@@ -8,23 +8,32 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 @RestController
 @RequestMapping("/api/appointments")
 @RequiredArgsConstructor
 public class AppointmentController {
 
-    private static final int MAX_DAILY_APPOINTMENTS_PER_VET = 8;
+    private static final int MAX_DAILY_APPOINTMENTS_PER_VET = 20;
 
     private final AppointmentRepository apptRepo;
     private final JwtUtil jwtUtil;
 
     @GetMapping
-    public List<Appointment> getByOwner(@RequestParam int ownerId) {
+    public List<Appointment> getByOwner(
+            @RequestParam int ownerId,
+            @RequestParam(required = false) String fromDate,
+            @RequestParam(required = false) String toDate) {
+        if (fromDate != null && toDate != null) {
+            return apptRepo.findByOwnerBetweenDates(ownerId,
+                LocalDate.parse(fromDate), LocalDate.parse(toDate));
+        }
         return apptRepo.findByOwner(ownerId);
     }
 
@@ -77,13 +86,15 @@ public class AppointmentController {
             if (apptRepo.countScheduledAppointmentsForVetOnDate(vetId, startTime) >= MAX_DAILY_APPOINTMENTS_PER_VET) {
                 return ResponseEntity.badRequest().body(Map.of(
                         "error",
-                        "This veterinarian has reached the maximum number of appointments for the selected day."
+                        "This veterinarian is fully booked for the selected day."
                 ));
             }
 
             int id = apptRepo.create(ownerId, petId, vetId, branchId,
                                      startTime, duration, reason);
             return ResponseEntity.ok(Map.of("apptId", id));
+        } catch (org.springframework.dao.DataIntegrityViolationException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", "This time slot is no longer available. Please choose a different time."));
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
         }
@@ -110,7 +121,7 @@ public class AppointmentController {
             String token = authHeader.substring(7);
             Integer tokenUserId = jwtUtil.extractUserId(token);
             List<String> roles = jwtUtil.extractRoles(token);
-            return tokenUserId != null && tokenUserId == ownerId && roles.contains("OWNER");
+            return tokenUserId != null && Objects.equals(tokenUserId, ownerId) && roles.contains("OWNER");
         } catch (Exception e) {
             return false;
         }

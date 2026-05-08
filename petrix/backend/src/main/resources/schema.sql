@@ -31,6 +31,7 @@ CREATE TABLE IF NOT EXISTS USERS (
 );
 
 ALTER TABLE USERS ADD COLUMN IF NOT EXISTS branch_id INTEGER REFERENCES BRANCH(branch_id);
+ALTER TABLE APPOINTMENT ADD COLUMN IF NOT EXISTS reminder_sent BOOLEAN NOT NULL DEFAULT FALSE;
 
 -- 0.2 USER_ROLE (USERS × ROLES)
 CREATE TABLE IF NOT EXISTS USER_ROLE (
@@ -123,7 +124,7 @@ CREATE TABLE IF NOT EXISTS STOCK_BATCH (
 CREATE TABLE IF NOT EXISTS APPOINTMENT (
     appt_id    SERIAL PRIMARY KEY,
     owner_id   INTEGER NOT NULL REFERENCES OWNER(owner_id),
-    pet_id     INTEGER NOT NULL REFERENCES PET(pet_id),
+    pet_id     INTEGER NOT NULL REFERENCES PET(pet_id) ON DELETE CASCADE,
     vet_id     INTEGER NOT NULL REFERENCES VETERINARIAN(vet_id),
     branch_id  INTEGER NOT NULL REFERENCES BRANCH(branch_id),
     start_time TIMESTAMP NOT NULL,
@@ -357,7 +358,7 @@ FROM PET p
 JOIN OWNER o       ON p.owner_id   = o.owner_id
 JOIN APPOINTMENT a ON a.owner_id   = o.owner_id AND a.pet_id = p.pet_id
 JOIN VISIT v       ON v.appt_id    = a.appt_id
-JOIN DIAGNOSIS d   ON d.visit_id   = v.visit_id
+LEFT JOIN DIAGNOSIS d   ON d.visit_id   = v.visit_id
 JOIN VETERINARIAN vet ON a.vet_id  = vet.vet_id
 JOIN BRANCH b      ON a.branch_id  = b.branch_id
 LEFT JOIN INVOICE i ON i.visit_id  = v.visit_id;
@@ -444,7 +445,9 @@ FROM (VALUES
     ('Samsun - Atakum',        'Çarşamba Mah. Atatürk Bulvarı No:72, Atakum/Samsun',         '+90 362 600 0001', 'atakum@petrix.com',         'Mon-Fri 08:00-19:00, Sat 09:00-17:00'),
     ('Samsun - Ilkadim',       'Kökçüoğlu Mah. Kazımpaşa Cad. No:18, İlkadım/Samsun',      '+90 362 600 0002', 'ilkadim@petrix.com',        'Mon-Fri 08:00-19:00, Sat 09:00-17:00'),
     ('Trabzon - Akcaabat',     'Söğütlü Mah. Atatürk Cad. No:36, Akçaabat/Trabzon',         '+90 462 500 0001', 'akcaabat@petrix.com',       'Mon-Fri 08:00-19:00, Sat 09:00-17:00'),
-    ('Trabzon - Ortahisar',    'Kemerkaya Mah. Uzun Sok. No:10, Ortahisar/Trabzon',          '+90 462 500 0002', 'ortahisar@petrix.com',      'Mon-Fri 08:00-19:00, Sat 09:00-17:00')
+    ('Trabzon - Ortahisar',    'Kemerkaya Mah. Uzun Sok. No:10, Ortahisar/Trabzon',          '+90 462 500 0002', 'ortahisar@petrix.com',      'Mon-Fri 08:00-19:00, Sat 09:00-17:00'),
+    ('Diyarbakir - Baglar',    'Baglar Mah. Elazig Cad. No:5, Baglar/Diyarbakir',             '+90 412 100 0001', 'baglar@petrix.com',          'Mon-Fri 08:00-19:00, Sat 09:00-16:00'),
+    ('Diyarbakir - Kayapinar', 'Kayapinar Mah. Ataturk Bulvari No:22, Kayapinar/Diyarbakir',  '+90 412 100 0002', 'kayapinar@petrix.com',       'Mon-Fri 08:00-19:00, Sat 09:00-16:00')
 ) AS v(name, address, phone, email, working_hours)
 WHERE NOT EXISTS (
     SELECT 1 FROM BRANCH b WHERE b.name = v.name
@@ -519,3 +522,40 @@ SELECT branch_id, med_id, 'INITIAL-' || branch_id || '-' || med_id, quantity, ex
 FROM STOCKED_AS
 WHERE quantity > 0
 ON CONFLICT DO NOTHING;
+
+-- ─── DEMO SEED DATA ─────────────────────────────────────────────────────────
+-- Password for all demo accounts: demo1234
+-- Hash: BCrypt(demo1234, 10 rounds)
+-- Pre-computed: $2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lkmG
+
+INSERT INTO VETERINARIAN (full_name, username, password_hash, branch_id, specialization, species_expertise)
+VALUES ('Dr. Ayse Kaya', 'ayse.kaya',
+        '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lkmG',
+        1, 'General Practice', 'Dog, Cat')
+ON CONFLICT (username) DO NOTHING;
+
+INSERT INTO VETERINARIAN (full_name, username, password_hash, branch_id, specialization, species_expertise)
+VALUES ('Dr. Mert Demir', 'mert.demir',
+        '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lkmG',
+        1, 'Surgery', 'Dog, Cat, Bird')
+ON CONFLICT (username) DO NOTHING;
+
+INSERT INTO OWNER (full_name, username, password_hash, email, phone)
+VALUES ('Mehmet Yilmaz', 'mehmet.yilmaz',
+        '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lkmG',
+        'mehmet@demo.com', '+90 555 000 0001')
+ON CONFLICT (username) DO NOTHING;
+
+INSERT INTO PET (owner_id, name, species, breed, birth_date)
+SELECT o.owner_id, 'Buddy', 'Dog', 'Golden Retriever', '2020-03-15'
+FROM OWNER o WHERE o.username = 'mehmet.yilmaz'
+  AND NOT EXISTS (
+      SELECT 1 FROM PET p WHERE p.owner_id = o.owner_id AND p.name = 'Buddy'
+  );
+
+INSERT INTO PET (owner_id, name, species, breed, birth_date)
+SELECT o.owner_id, 'Mia', 'Cat', 'Siamese', '2021-07-20'
+FROM OWNER o WHERE o.username = 'mehmet.yilmaz'
+  AND NOT EXISTS (
+      SELECT 1 FROM PET p WHERE p.owner_id = o.owner_id AND p.name = 'Mia'
+  );

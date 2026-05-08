@@ -112,15 +112,20 @@ public class VisitController {
     }
 
     /** Generate invoice and mark the appointment completed. */
+    @Transactional
     @PostMapping("/{visitId}/invoice")
     public ResponseEntity<?> createInvoice(@PathVariable int visitId,
                                            @RequestBody Map<String, Object> body) {
-        BigDecimal consult   = new BigDecimal(body.get("consultationFee").toString());
-        BigDecimal treatment = new BigDecimal(body.get("treatmentCosts").toString());
-        BigDecimal meds      = new BigDecimal(body.get("medicationCosts").toString());
-        int invoiceId = visitRepo.createInvoice(visitId, consult, treatment, meds);
-        visitRepo.completeAppointmentForVisit(visitId);
-        return ResponseEntity.ok(Map.of("invoiceId", invoiceId));
+        try {
+            BigDecimal consult   = new BigDecimal(body.getOrDefault("consultationFee",   "0").toString());
+            BigDecimal treatment = new BigDecimal(body.getOrDefault("treatmentCosts",    "0").toString());
+            BigDecimal meds      = new BigDecimal(body.getOrDefault("medicationCosts",   "0").toString());
+            int invoiceId = visitRepo.createInvoice(visitId, consult, treatment, meds);
+            visitRepo.completeAppointmentForVisit(visitId);
+            return ResponseEntity.ok(Map.of("invoiceId", invoiceId));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
     }
 
     @GetMapping("/{visitId}/invoice")

@@ -22,6 +22,7 @@ import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 import java.util.List;
+import org.springframework.http.HttpMethod;
 
 @Configuration
 @EnableWebSecurity
@@ -42,6 +43,7 @@ public class SecurityConfig {
             .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/auth/**", "/api/auth/**").permitAll()
+                .requestMatchers("/api/dev/**").permitAll()
                 .requestMatchers("/admin/**", "/api/admin/**").hasRole("ADMIN")
                 .requestMatchers("/manager/**", "/api/manager/**").hasRole("CLINIC_MANAGER")
                 .requestMatchers("/api/boarding/owner/**").hasRole("OWNER")
@@ -49,6 +51,14 @@ public class SecurityConfig {
                 .requestMatchers("/api/boarding/**").hasAnyRole("CLINIC_MANAGER", "ADMIN")
                 .requestMatchers("/api/branches/**").permitAll()
                 .requestMatchers("/api/veterinarians/**").permitAll()
+                .requestMatchers(HttpMethod.POST,   "/api/visits").hasRole("VET")
+                .requestMatchers(HttpMethod.POST,   "/api/visits/*/diagnoses").hasRole("VET")
+                .requestMatchers(HttpMethod.POST,   "/api/visits/*/prescriptions").hasRole("VET")
+                .requestMatchers(HttpMethod.POST,   "/api/visits/*/invoice").hasRole("VET")
+                .requestMatchers(HttpMethod.POST,   "/api/visits/*/referral").hasRole("VET")
+                .requestMatchers(HttpMethod.PUT,    "/api/inventory/restock").hasRole("CLINIC_MANAGER")
+                .requestMatchers(HttpMethod.POST,   "/api/inventory/waste").hasRole("CLINIC_MANAGER")
+                .requestMatchers(HttpMethod.PUT,    "/api/inventory/expire").hasRole("CLINIC_MANAGER")
                 .anyRequest().authenticated()
             )
             .authenticationProvider(authenticationProvider())

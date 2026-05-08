@@ -48,14 +48,16 @@ export default function Navbar() {
             {user.role === 'VET' && (
               <>
                 <Link to="/vet-dashboard" className="text-sm font-semibold" style={{ color: 'var(--gray-600)' }}>Dashboard</Link>
-                <Link to="/waste-log"     className="text-sm font-semibold" style={{ color: 'var(--gray-600)' }}>Waste Log</Link>
-                <Link to="/reports"       className="text-sm font-semibold" style={{ color: 'var(--gray-600)' }}>Reports</Link>
               </>
             )}
-            {canViewInventory && (
+            {user.role === 'CLINIC_MANAGER' && (
               <>
-                <Link to="/inventory" className="text-sm font-semibold" style={{ color: 'var(--gray-600)' }}>Inventory</Link>
-                <Link to="/boarding" className="text-sm font-semibold" style={{ color: 'var(--gray-600)' }}>Boarding</Link>
+                <Link to="/manager-dashboard"    className="text-sm font-semibold" style={{ color: 'var(--gray-600)' }}>Manager Dashboard</Link>
+                <Link to="/inventory"            className="text-sm font-semibold" style={{ color: 'var(--gray-600)' }}>Inventory</Link>
+                <Link to="/boarding"             className="text-sm font-semibold" style={{ color: 'var(--gray-600)' }}>Boarding</Link>
+                <Link to="/reports"              className="text-sm font-semibold" style={{ color: 'var(--gray-600)' }}>Reports</Link>
+                <Link to="/waste-log"            className="text-sm font-semibold" style={{ color: 'var(--gray-600)' }}>Waste Log</Link>
+                <Link to="/vaccination-reports"  className="text-sm font-semibold" style={{ color: 'var(--gray-600)' }}>Vaccination Reports</Link>
               </>
             )}
           </div>

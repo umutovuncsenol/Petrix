@@ -117,14 +117,15 @@ CREATE TABLE IF NOT EXISTS STOCK_BATCH (
 CREATE TABLE IF NOT EXISTS APPOINTMENT (
     appt_id    SERIAL PRIMARY KEY,
     owner_id   INTEGER NOT NULL REFERENCES OWNER(owner_id),
-    pet_id     INTEGER NOT NULL REFERENCES PET(pet_id),
+    pet_id     INTEGER NOT NULL REFERENCES PET(pet_id) ON DELETE CASCADE,
     vet_id     INTEGER NOT NULL REFERENCES VETERINARIAN(vet_id),
     branch_id  INTEGER NOT NULL REFERENCES BRANCH(branch_id),
     start_time TIMESTAMP NOT NULL,
     duration   INTEGER NOT NULL DEFAULT 30 CHECK (duration > 0),
     status     VARCHAR(20) NOT NULL DEFAULT 'scheduled'
                CHECK (status IN ('scheduled','completed','cancelled')),
-    reason     VARCHAR(255),
+    reason        VARCHAR(255),
+    reminder_sent BOOLEAN NOT NULL DEFAULT FALSE,
     EXCLUDE USING GIST (
         vet_id WITH =,
         tsrange(start_time, start_time + duration * INTERVAL '1 minute', '[)') WITH &&
@@ -351,7 +352,7 @@ FROM PET p
 JOIN OWNER o       ON p.owner_id   = o.owner_id
 JOIN APPOINTMENT a ON a.owner_id   = o.owner_id AND a.pet_id = p.pet_id
 JOIN VISIT v       ON v.appt_id    = a.appt_id
-JOIN DIAGNOSIS d   ON d.visit_id   = v.visit_id
+LEFT JOIN DIAGNOSIS d   ON d.visit_id   = v.visit_id
 JOIN VETERINARIAN vet ON a.vet_id  = vet.vet_id
 JOIN BRANCH b      ON a.branch_id  = b.branch_id
 LEFT JOIN INVOICE i ON i.visit_id  = v.visit_id;
@@ -371,7 +372,8 @@ SELECT
     CURRENT_DATE - vr.next_due_date AS days_overdue,
     vr.status,
     vet.full_name        AS administering_vet,
-    b.name               AS branch_name
+    b.name               AS branch_name,
+    b.branch_id
 FROM VACCINATION_RECORD vr
 JOIN VACCINATION_PLAN vp ON vr.plan_id  = vp.plan_id
 JOIN PET p               ON vp.pet_id   = p.pet_id
@@ -454,7 +456,10 @@ FROM (VALUES
 ('Samsun - Ilkadim',       'Kökçüoğlu Mah. Kazımpaşa Cad. No:18, İlkadım/Samsun',      '+90 362 600 0002', 'ilkadim@petrix.com',        'Mon-Fri 08:00-19:00, Sat 09:00-17:00'),
 -- Trabzon (2)
 ('Trabzon - Akcaabat',     'Söğütlü Mah. Atatürk Cad. No:36, Akçaabat/Trabzon',         '+90 462 500 0001', 'akcaabat@petrix.com',       'Mon-Fri 08:00-19:00, Sat 09:00-17:00'),
-('Trabzon - Ortahisar',    'Kemerkaya Mah. Uzun Sok. No:10, Ortahisar/Trabzon',          '+90 462 500 0002', 'ortahisar@petrix.com',      'Mon-Fri 08:00-19:00, Sat 09:00-17:00')
+('Trabzon - Ortahisar',    'Kemerkaya Mah. Uzun Sok. No:10, Ortahisar/Trabzon',          '+90 462 500 0002', 'ortahisar@petrix.com',      'Mon-Fri 08:00-19:00, Sat 09:00-17:00'),
+-- Diyarbakir (2)
+('Diyarbakir - Baglar',    'Baglar Mah. Elazig Cad. No:5, Baglar/Diyarbakir',             '+90 412 100 0001', 'baglar@petrix.com',          'Mon-Fri 08:00-19:00, Sat 09:00-16:00'),
+('Diyarbakir - Kayapinar', 'Kayapinar Mah. Ataturk Bulvari No:22, Kayapinar/Diyarbakir',  '+90 412 100 0002', 'kayapinar@petrix.com',       'Mon-Fri 08:00-19:00, Sat 09:00-16:00')
 ) AS v(name, address, phone, email, working_hours)
 WHERE NOT EXISTS (
     SELECT 1 FROM BRANCH b WHERE b.name = v.name
@@ -462,7 +467,7 @@ WHERE NOT EXISTS (
 
 INSERT INTO MEMBERSHIP_PLAN (name, monthly_fee, perks_description) VALUES
     ('Basic',  199, '5% discount on consultation • Standard appointment slots • Email reminders'),
-    ('Silver', 399, '10% discount on consultation • Priority appointment slots • 1 free boarding night/month • SMS + email reminders'),
+    ('Silver', 399, '10% discount on consultation • Priority appointment slots • 1 free boarding night/month • email reminders'),
     ('Gold',   699, '20% discount on consultation • VIP appointment slots • 3 free boarding nights/month • Dedicated vet line')
 ON CONFLICT DO NOTHING;
 
@@ -505,6 +510,15 @@ SELECT 1, med_id, 100, '2027-01-01', 20, 10 FROM MEDICATION ON CONFLICT DO NOTHI
 
 INSERT INTO STOCKED_AS (branch_id, med_id, quantity, expiry_date, reorder_level, minimum_stock_threshold)
 SELECT 2, med_id, 80,  '2027-01-01', 15, 8  FROM MEDICATION ON CONFLICT DO NOTHING;
+
+INSERT INTO STOCKED_AS (branch_id, med_id, quantity, expiry_date, reorder_level, minimum_stock_threshold)
+SELECT 3, med_id, 60,  '2027-01-01', 10, 5  FROM MEDICATION ON CONFLICT DO NOTHING;
+
+INSERT INTO STOCK_BATCH (branch_id, med_id, batch_number, quantity, expiry_date)
+SELECT branch_id, med_id, 'INITIAL-' || branch_id || '-' || med_id, quantity, expiry_date
+FROM STOCKED_AS
+WHERE quantity > 0
+ON CONFLICT DO NOTHING;
 
 INSERT INTO STOCKED_AS (branch_id, med_id, quantity, expiry_date, reorder_level, minimum_stock_threshold)
 SELECT 3, med_id, 60,  '2027-01-01', 10, 5  FROM MEDICATION ON CONFLICT DO NOTHING;

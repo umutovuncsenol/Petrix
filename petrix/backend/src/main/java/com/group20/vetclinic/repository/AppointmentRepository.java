@@ -99,6 +99,23 @@ public class AppointmentRepository {
         return jdbc.query(sql, rowMapper, ownerId);
     }
 
+    public List<Appointment> findByOwnerBetweenDates(int ownerId, LocalDate from, LocalDate to) {
+        String sql = """
+            SELECT a.*, p.name as pet_name, v.full_name as vet_name,
+                   b.name as branch_name, o.full_name as owner_name
+            FROM APPOINTMENT a
+            JOIN PET p ON a.pet_id = p.pet_id
+            JOIN VETERINARIAN v ON a.vet_id = v.vet_id
+            JOIN BRANCH b ON a.branch_id = b.branch_id
+            JOIN OWNER o ON a.owner_id = o.owner_id
+            WHERE a.owner_id = ?
+              AND DATE(a.start_time) BETWEEN ? AND ?
+            ORDER BY a.start_time DESC
+            """;
+        return jdbc.query(sql, rowMapper, ownerId,
+            java.sql.Date.valueOf(from), java.sql.Date.valueOf(to));
+    }
+
     public List<Map<String, Object>> findVisitSummariesByOwner(int ownerId) {
         String sql = """
             SELECT

@@ -49,4 +49,13 @@ public class PetRepository {
             "SELECT allergen, reaction, severity FROM ALLERGY WHERE pet_id = ? ORDER BY severity",
             petId);
     }
+
+    public void update(int petId, String name, String species, String breed, java.time.LocalDate birthDate) {
+        jdbc.update("UPDATE PET SET name=?, species=?, breed=?, birth_date=? WHERE pet_id=?",
+            name, species, breed, birthDate != null ? Date.valueOf(birthDate) : null, petId);
+    }
+
+    public void delete(int petId) {
+        jdbc.update("DELETE FROM PET WHERE pet_id=?", petId);
+    }
 }

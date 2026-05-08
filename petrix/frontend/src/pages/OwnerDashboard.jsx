@@ -56,6 +56,8 @@ export default function OwnerDashboard() {
   const [visitSummaries, setVisitSummaries] = useState([])
   const [summariesLoading, setSummariesLoading] = useState(false)
   const [summariesError, setSummariesError] = useState('')
+  const [fromDate, setFromDate] = useState('')
+  const [toDate,   setToDate]   = useState('')
   const [payingInvoice, setPayingInvoice] = useState({})
   const [ratings, setRatings] = useState({})
   const [ratingForm, setRatingForm] = useState({})
@@ -168,6 +170,19 @@ export default function OwnerDashboard() {
     } finally {
       setRatingSubmitting(prev => ({ ...prev, [visitId]: false }))
     }
+  }
+
+  async function filterAppts() {
+    if (!fromDate || !toDate) return
+    const res = await appointmentAPI.getByOwner(user.userId, { fromDate, toDate })
+    setAppts(res.data)
+  }
+
+  async function clearApptFilter() {
+    setFromDate('')
+    setToDate('')
+    const res = await appointmentAPI.getByOwner(user.userId)
+    setAppts(res.data)
   }
 
   async function cancelAppt(id) {
@@ -321,7 +336,23 @@ export default function OwnerDashboard() {
 
         {/* Upcoming Appointments */}
         <div className="card mb-4">
-          <h2 className="section-title">Upcoming Appointments</h2>
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="section-title" style={{ margin: 0 }}>Upcoming Appointments</h2>
+          </div>
+          <div className="flex items-center gap-2 mb-3" style={{ flexWrap: 'wrap' }}>
+            <div className="form-group" style={{ marginBottom: 0 }}>
+              <label>From</label>
+              <input type="date" value={fromDate} onChange={e => setFromDate(e.target.value)} />
+            </div>
+            <div className="form-group" style={{ marginBottom: 0 }}>
+              <label>To</label>
+              <input type="date" value={toDate} onChange={e => setToDate(e.target.value)} />
+            </div>
+            <button className="btn btn-primary btn-sm" style={{ marginTop: '1.5rem' }}
+              onClick={filterAppts} disabled={!fromDate || !toDate}>Filter</button>
+            <button className="btn btn-outline btn-sm" style={{ marginTop: '1.5rem' }}
+              onClick={clearApptFilter}>Clear</button>
+          </div>
           {upcoming.length === 0
             ? <p className="text-sm text-muted">No upcoming appointments.</p>
             : (
