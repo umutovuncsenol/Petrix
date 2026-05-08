@@ -75,7 +75,24 @@ public class VaccinationRepository {
 
     public List<VaccinationRecord> findByPet(int petId) {
         String sql = """
-            SELECT vr.*, m.name AS vaccine_name
+            SELECT
+                vr.vacc_id,
+                vr.plan_id,
+                vr.med_id,
+                vr.vet_id,
+                vr.visit_id,
+                vr.batch_number,
+                vr.administered_date,
+                vr.next_due_date,
+                CASE
+                    WHEN vr.next_due_date IS NOT NULL
+                         AND vr.next_due_date < CURRENT_DATE
+                         AND vr.status != 'done'
+                    THEN 'overdue'
+                    ELSE vr.status
+                END AS status,
+                vr.notes,
+                m.name AS vaccine_name
             FROM VACCINATION_RECORD vr
             JOIN VACCINATION_PLAN vp ON vr.plan_id = vp.plan_id
             JOIN VACCINATION vac ON vr.med_id = vac.med_id

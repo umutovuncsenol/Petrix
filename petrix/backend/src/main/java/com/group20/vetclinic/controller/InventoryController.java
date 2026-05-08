@@ -88,10 +88,15 @@ public class InventoryController {
     public List<Map<String, Object>> getWasteLogs(@PathVariable int branchId) {
         return inventoryRepo.findWasteByBranch(branchId);
     }
+
+    @GetMapping("/reports/consumption/{branchId}")
+    public List<Map<String, Object>> getStockConsumptionReport(@PathVariable int branchId) {
+        return inventoryRepo.getStockConsumptionReport(branchId);
+    }
+
     @GetMapping("/reports/branch/{branchId}")
     public Map<String, Object> getBranchReport(@PathVariable int branchId) {
         return inventoryRepo.getReport(branchId);
     }
-    
 
 }

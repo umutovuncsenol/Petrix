@@ -18,6 +18,12 @@ function payBadge(s) {
   return <span className={`badge ${map[s] || 'badge-gray'}`}>{s || '—'}</span>
 }
 
+function vaccinationRowStyle(status) {
+  if (status === 'overdue') return { backgroundColor: '#fee2e2' }
+  if (status === 'upcoming') return { backgroundColor: '#fef9c3' }
+  return undefined
+}
+
 const today = () => new Date().toISOString().slice(0, 10)
 
 const TABS = ['Medical History', 'Vaccinations', 'Allergies']
@@ -262,14 +268,26 @@ export default function PetProfilePage() {
                 <div className="table-wrap">
                   <table>
                     <thead>
-                      <tr><th>Date</th><th>Reason</th><th>Diagnosis</th><th>Severity</th><th>Vet</th><th>Branch</th><th>Payment</th></tr>
+                      <tr>
+                        <th>Date</th>
+                        <th>Reason</th>
+                        <th>Diagnosis</th>
+                        <th>Treatment Notes</th>
+                        <th>Prescriptions</th>
+                        <th>Severity</th>
+                        <th>Vet</th>
+                        <th>Branch</th>
+                        <th>Payment</th>
+                      </tr>
                     </thead>
                     <tbody>
                       {timeline.map((row, i) => (
                         <tr key={i}>
                           <td className="text-sm">{new Date(row.visit_date).toLocaleDateString()}</td>
                           <td className="text-sm">{row.reason || '—'}</td>
-                          <td className="text-sm">{row.diagnosis}</td>
+                          <td className="text-sm">{row.diagnosis || 'No diagnosis recorded'}</td>
+                          <td className="text-sm">{row.treatment_notes || '—'}</td>
+                          <td className="text-sm">{row.prescriptions || '—'}</td>
                           <td>{severityBadge(row.severity)}</td>
                           <td className="text-sm">{row.veterinarian_name}</td>
                           <td className="text-sm">{row.branch_name}</td>
@@ -374,7 +392,7 @@ export default function PetProfilePage() {
             )}
 
             {vaccins.length === 0
-              ? <p className="text-sm text-muted">No vaccination records.</p>
+              ? <p className="text-sm text-muted">No vaccination records found.</p>
               : (
                 <div className="table-wrap">
                   <table>
@@ -383,7 +401,7 @@ export default function PetProfilePage() {
                     </thead>
                     <tbody>
                       {vaccins.map(v => (
-                        <tr key={v.vaccId}>
+                        <tr key={v.vaccId} style={vaccinationRowStyle(v.status)}>
                           <td className="font-semibold">{v.vaccineName}</td>
                           <td className="text-sm">{v.administeredDate ? new Date(v.administeredDate).toLocaleDateString() : '—'}</td>
                           <td className="text-sm text-muted">{v.batchNumber || '—'}</td>
@@ -412,7 +430,7 @@ export default function PetProfilePage() {
           <div className="card">
             <h2 className="section-title">Known Allergies</h2>
             {allergies.length === 0
-              ? <p className="text-sm text-muted">No known allergies recorded.</p>
+              ? <p className="text-sm text-muted">No allergies recorded.</p>
               : (
                 <div className="table-wrap">
                   <table>

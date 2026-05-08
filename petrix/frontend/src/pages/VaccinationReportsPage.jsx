@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useAuth } from '../context/AuthContext'
 import { branchAPI, vaccinationAPI } from '../services/api'
 
 function ComplianceBar({ rate }) {
@@ -18,16 +19,26 @@ function ComplianceBar({ rate }) {
 }
 
 export default function VaccinationReportsPage() {
+  const { user } = useAuth()
   const [branches,    setBranches]    = useState([])
-  const [branchId,    setBranchId]    = useState('')
+  const [branchId,    setBranchId]    = useState(user?.branchId ? String(user.branchId) : '')
   const [report,      setReport]      = useState(null)
   const [loading,     setLoading]     = useState(false)
   const [error,       setError]       = useState('')
 
   useEffect(() => {
-    branchAPI.getAll().then(r => setBranches(r.data))
-    loadReport(null)
-  }, [])
+    branchAPI.getAll()
+      .then(r => {
+        setBranches(r.data)
+        const defaultBranchId = user?.branchId ? String(user.branchId) : ''
+        const selectedBranchId = branchId || defaultBranchId || (r.data[0]?.branchId ? String(r.data[0].branchId) : '')
+        if (selectedBranchId && selectedBranchId !== branchId) {
+          setBranchId(selectedBranchId)
+        }
+        loadReport(selectedBranchId || null)
+      })
+      .catch(e => setError('Failed to load report: ' + (e.response?.data?.error || e.message)))
+  }, [user?.branchId])
 
   async function loadReport(bid) {
     setLoading(true)

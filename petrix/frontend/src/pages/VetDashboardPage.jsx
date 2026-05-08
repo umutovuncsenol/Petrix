@@ -48,6 +48,7 @@ export default function VetDashboardPage() {
   const [appts,    setAppts]    = useState([])
   const [selected, setSelected] = useState(null)
   const [petHistory, setPetHistory] = useState([])
+  const [petAllergies, setPetAllergies] = useState([])
   const [loading,  setLoading]  = useState(true)
   const [visitStep, setVisitStep] = useState(null) // null | 'diagnosis' | 'prescription' | 'invoice'
   const [visitId,  setVisitId]  = useState(null)
@@ -161,8 +162,12 @@ export default function VetDashboardPage() {
   async function loadVisitProgress(visit) {
     setVisitId(visit.visitId)
 
-    const meds = await inventoryAPI.getMedications().catch(() => ({ data: [] }))
+    const [meds, vaccs] = await Promise.all([
+      inventoryAPI.getMedications().catch(() => ({ data: [] })),
+      api.get('/vaccinations/vaccines').catch(() => ({ data: [] })),
+    ])
     setMedications(meds.data)
+    setVaccines(vaccs.data)
 
     const [diagnoses, prescriptions, invoice] = await Promise.all([
       visitAPI.getDiagnoses(visit.visitId).catch(() => ({ data: [] })),
@@ -222,11 +227,16 @@ export default function VetDashboardPage() {
     setVisitLoading(true)
     resetVisitForms()
     setReferralOpen(false)
+    setPetAllergies([])
     setMsg('')
     setError('')
     try {
-      const hist = await petAPI.getMedicalHistory(appt.petId).catch(() => ({ data: [] }))
+      const [hist, allergies] = await Promise.all([
+        petAPI.getMedicalHistory(appt.petId).catch(() => ({ data: [] })),
+        petAPI.getAllergies(appt.petId).catch(() => ({ data: [] })),
+      ])
       setPetHistory(hist.data)
+      setPetAllergies(allergies.data)
       setBranchId(appt.branchId)
 
       const existingVisit = await visitAPI.getByAppt(appt.apptId).catch(() => null)
@@ -448,19 +458,46 @@ export default function VetDashboardPage() {
                 )}
 
                 {/* Pet Medical History */}
+                <h3 className="font-semibold text-sm mb-2">Known allergies</h3>
+                {petAllergies.length === 0
+                  ? <p className="text-xs text-muted mb-3">No allergies recorded.</p>
+                  : (
+                    <div className="flex gap-2 mb-3" style={{ flexWrap: 'wrap' }}>
+                      {petAllergies.map((allergy, index) => (
+                        <span key={`${allergy.allergen}-${index}`} className="badge badge-red text-xs">
+                          {allergy.allergen}{allergy.severity ? ` · ${allergy.severity}` : ''}
+                        </span>
+                      ))}
+                    </div>
+                  )
+                }
+
                 <h3 className="font-semibold text-sm mb-2">Pet medical history</h3>
                 {petHistory.length === 0
-                  ? <p className="text-xs text-muted mb-3">No prior records.</p>
+                  ? <p className="text-xs text-muted mb-3">No medical history found for this pet.</p>
                   : (
                     <div className="table-wrap mb-3">
                       <table>
-                        <thead><tr><th>Date</th><th>Type</th><th>Detail</th></tr></thead>
+                        <thead>
+                          <tr>
+                            <th>Visit Date</th>
+                            <th>Diagnosis</th>
+                            <th>Treatment Notes</th>
+                            <th>Prescriptions</th>
+                            <th>Payment Status</th>
+                          </tr>
+                        </thead>
                         <tbody>
                           {petHistory.slice(0,5).map((r, i) => (
                             <tr key={i}>
                               <td className="text-xs">{new Date(r.visit_date).toLocaleDateString()}</td>
-                              <td><span className="badge badge-gray text-xs">Diagnosis</span></td>
-                              <td className="text-xs">{r.diagnosis} — {r.severity}</td>
+                              <td className="text-xs">
+                                {r.diagnosis || 'No diagnosis recorded'}
+                                {r.severity ? ` — ${r.severity}` : ''}
+                              </td>
+                              <td className="text-xs">{r.treatment_notes || '—'}</td>
+                              <td className="text-xs">{r.prescriptions || '—'}</td>
+                              <td className="text-xs">{r.payment_status || '—'}</td>
                             </tr>
                           ))}
                         </tbody>
