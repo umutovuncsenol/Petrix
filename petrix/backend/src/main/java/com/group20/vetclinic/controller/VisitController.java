@@ -4,6 +4,7 @@ import com.group20.vetclinic.repository.VisitRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.interceptor.TransactionAspectSupport;
 import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
@@ -102,6 +103,7 @@ public class VisitController {
             }
             return ResponseEntity.ok(Map.of("rxId", rxId));
         } catch (Exception e) {
+            TransactionAspectSupport.currentTransactionStatus().setRollbackOnly();
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
         }
     }
@@ -124,6 +126,7 @@ public class VisitController {
             visitRepo.completeAppointmentForVisit(visitId);
             return ResponseEntity.ok(Map.of("invoiceId", invoiceId));
         } catch (Exception e) {
+            TransactionAspectSupport.currentTransactionStatus().setRollbackOnly();
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
         }
     }

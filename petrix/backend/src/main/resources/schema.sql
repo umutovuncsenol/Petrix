@@ -349,6 +349,7 @@ SELECT
     vet.full_name    AS veterinarian_name,
     vet.specialization,
     b.name           AS branch_name,
+    rx.prescriptions,
     i.invoice_id,
     i.consultation_fee,
     i.treatment_costs,
@@ -361,6 +362,15 @@ JOIN VISIT v       ON v.appt_id    = a.appt_id
 LEFT JOIN DIAGNOSIS d   ON d.visit_id   = v.visit_id
 JOIN VETERINARIAN vet ON a.vet_id  = vet.vet_id
 JOIN BRANCH b      ON a.branch_id  = b.branch_id
+LEFT JOIN (
+    SELECT
+        pr.visit_id,
+        STRING_AGG(m.name || ' x' || c.quantity, ', ' ORDER BY m.name) AS prescriptions
+    FROM PRESCRIPTION pr
+    JOIN CONTAINS c ON pr.rx_id = c.rx_id
+    JOIN MEDICATION m ON c.med_id = m.med_id
+    GROUP BY pr.visit_id
+) rx ON rx.visit_id = v.visit_id
 LEFT JOIN INVOICE i ON i.visit_id  = v.visit_id;
 
 CREATE OR REPLACE VIEW OverdueVaccinations AS

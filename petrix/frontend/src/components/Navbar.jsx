@@ -40,8 +40,8 @@ export default function Navbar() {
             {user.role === 'OWNER' && (
               <>
                 <Link to="/" className="text-sm font-semibold" style={{ color: 'var(--gray-600)' }}>Dashboard</Link>
+                <Link to="/dashboard" className="text-sm font-semibold" style={{ color: 'var(--gray-600)' }}>My Pets</Link>
                 <Link to="/book-appointment" className="text-sm font-semibold" style={{ color: 'var(--gray-600)' }}>Book Appointment</Link>
-                <Link to="/owner/boarding" className="text-sm font-semibold" style={{ color: 'var(--gray-600)' }}>Pet Hotel</Link>
                 <Link to="/membership" className="text-sm font-semibold" style={{ color: 'var(--gray-600)' }}>Membership</Link>
               </>
             )}
@@ -54,11 +54,13 @@ export default function Navbar() {
               <>
                 <Link to="/manager-dashboard"    className="text-sm font-semibold" style={{ color: 'var(--gray-600)' }}>Manager Dashboard</Link>
                 <Link to="/inventory"            className="text-sm font-semibold" style={{ color: 'var(--gray-600)' }}>Inventory</Link>
-                <Link to="/boarding"             className="text-sm font-semibold" style={{ color: 'var(--gray-600)' }}>Boarding</Link>
                 <Link to="/reports"              className="text-sm font-semibold" style={{ color: 'var(--gray-600)' }}>Reports</Link>
                 <Link to="/waste-log"            className="text-sm font-semibold" style={{ color: 'var(--gray-600)' }}>Waste Log</Link>
                 <Link to="/vaccination-reports"  className="text-sm font-semibold" style={{ color: 'var(--gray-600)' }}>Vaccination Reports</Link>
               </>
+            )}
+            {user.role === 'ADMIN' && (
+              <Link to="/admin-dashboard" className="text-sm font-semibold" style={{ color: 'var(--gray-600)' }}>Admin Dashboard</Link>
             )}
           </div>
         )}

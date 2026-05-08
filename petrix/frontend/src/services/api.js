@@ -89,6 +89,7 @@ export const inventoryAPI = {
   logWaste:       (data)           => api.post('/inventory/waste', data),
   getWasteLogs:   (branchId)       => api.get(`/inventory/waste/${branchId}`),
   getReport:      (branchId)       => api.get(`/inventory/reports/branch/${branchId}`),
+  getConsumptionReport: (branchId) => api.get(`/inventory/reports/consumption/${branchId}`),
 }
 
 // ── Boarding ─────────────────────────────────────────────
@@ -117,6 +118,11 @@ export const vaccinationAPI = {
   deleteRecord:  (id)              => api.delete(`/vaccinations/records/${id}`),
   getOverdue:    (params)          => api.get('/vaccinations/overdue', { params }),
   getReport:     (params)          => api.get('/reports/vaccinations', { params }),
+}
+
+export const managerAPI = {
+  getBranchStats: (branchId) => api.get(`/manager/branch/${branchId}/stats`),
+  getBranchVets:  (branchId) => api.get(`/manager/branch/${branchId}/vets`),
 }
 
 export default api

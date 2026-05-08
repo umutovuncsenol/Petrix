@@ -1,23 +1,43 @@
 import { useState, useEffect } from 'react'
+import { useAuth } from '../context/AuthContext'
 import { branchAPI, inventoryAPI } from '../services/api'
 
 export default function ReportsPage() {
+  const { user } = useAuth()
   const [branches,  setBranches]  = useState([])
-  const [branchId,  setBranchId]  = useState('')
+  const [branchId,  setBranchId]  = useState(user?.branchId ? String(user.branchId) : '')
   const [report,    setReport]    = useState(null)
+  const [consumptionReport, setConsumptionReport] = useState([])
   const [loading,   setLoading]   = useState(false)
   const [error,     setError]     = useState('')
 
   useEffect(() => {
-    branchAPI.getAll().then(r => setBranches(r.data))
-  }, [])
+    branchAPI.getAll()
+      .then(r => {
+        setBranches(r.data)
+        if (!branchId && r.data.length > 0) {
+          setBranchId(user?.branchId ? String(user.branchId) : String(r.data[0].branchId))
+        }
+      })
+      .catch(() => setBranches([]))
+  }, [user?.branchId])
 
   useEffect(() => {
-    if (!branchId) { setReport(null); return }
+    if (!branchId) {
+      setReport(null)
+      setConsumptionReport([])
+      return
+    }
     setLoading(true)
     setError('')
-    inventoryAPI.getReport(branchId)
-      .then(r => setReport(r.data))
+    Promise.all([
+      inventoryAPI.getReport(branchId),
+      inventoryAPI.getConsumptionReport(branchId),
+    ])
+      .then(([reportRes, consumptionRes]) => {
+        setReport(reportRes.data)
+        setConsumptionReport(consumptionRes.data)
+      })
       .catch(e => setError('Failed to load report: ' + (e.response?.data?.error || e.message)))
       .finally(() => setLoading(false))
   }, [branchId])
@@ -101,6 +121,35 @@ export default function ReportsPage() {
                                 : <span className="badge badge-green">OK</span>
                               }
                             </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )
+              }
+            </div>
+
+            <div className="card mb-4">
+              <h2 className="section-title">Stock Consumption Report</h2>
+              {consumptionReport.length === 0
+                ? <p className="text-sm text-muted">No stock consumption data for this branch.</p>
+                : (
+                  <div className="table-wrap">
+                    <table>
+                      <thead>
+                        <tr>
+                          <th>Medication</th>
+                          <th>Total Consumed</th>
+                          <th>Prescription Count</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {consumptionReport.map((row, i) => (
+                          <tr key={`${row.med_id}-${i}`}>
+                            <td className="font-semibold">{row.medication_name}</td>
+                            <td>{row.total_consumed}</td>
+                            <td>{row.prescription_count}</td>
                           </tr>
                         ))}
                       </tbody>

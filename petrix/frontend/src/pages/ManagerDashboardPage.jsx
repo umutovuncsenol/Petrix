@@ -1,34 +1,50 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
-import { branchAPI, vaccinationAPI } from '../services/api'
+import { branchAPI, managerAPI, vaccinationAPI } from '../services/api'
 
 export default function ManagerDashboardPage() {
   const { user } = useAuth()
 
   const [branches,   setBranches]   = useState([])
-  const [branchId,   setBranchId]   = useState('')
+  const [branchId,   setBranchId]   = useState(user?.branchId ? String(user.branchId) : '')
   const [threshold,  setThreshold]  = useState(0)
+  const [stats,      setStats]      = useState(null)
+  const [vets,       setVets]       = useState([])
   const [overdue,    setOverdue]    = useState([])
   const [loading,    setLoading]    = useState(false)
   const [error,      setError]      = useState('')
-  const [queried,    setQueried]    = useState(false)
 
   useEffect(() => {
-    branchAPI.getAll().then(r => setBranches(r.data))
-  }, [])
+    branchAPI.getAll()
+      .then(r => {
+        setBranches(r.data)
+        if (!branchId && r.data.length > 0) {
+          setBranchId(user?.branchId ? String(user.branchId) : String(r.data[0].branchId))
+        }
+      })
+      .catch(e => setError('Failed to load branches: ' + (e.response?.data?.error || e.message)))
+  }, [user?.branchId])
 
-  async function fetchOverdue() {
+  useEffect(() => {
+    if (!branchId) return
+    loadDashboard(branchId)
+  }, [branchId, threshold])
+
+  async function loadDashboard(selectedBranchId) {
     setLoading(true)
     setError('')
-    setQueried(true)
     try {
-      const params = { threshold }
-      if (branchId) params.branchId = branchId
-      const res = await vaccinationAPI.getOverdue(params)
-      setOverdue(res.data)
+      const [statsRes, vetsRes, overdueRes] = await Promise.all([
+        managerAPI.getBranchStats(selectedBranchId),
+        managerAPI.getBranchVets(selectedBranchId),
+        vaccinationAPI.getOverdue({ branchId: selectedBranchId, threshold }),
+      ])
+      setStats(statsRes.data)
+      setVets(vetsRes.data)
+      setOverdue(overdueRes.data)
     } catch (e) {
-      setError('Failed to load overdue vaccinations: ' + (e.response?.data?.error || e.message))
+      setError('Failed to load manager dashboard: ' + (e.response?.data?.error || e.message))
     } finally {
       setLoading(false)
     }
@@ -43,27 +59,21 @@ export default function ManagerDashboardPage() {
             <p className="text-sm text-muted mt-1">Welcome, {user?.fullName}</p>
           </div>
           <div className="flex gap-2">
-            <Link to="/boarding" className="btn btn-primary btn-sm">
-              Boarding
-            </Link>
+            <Link to="/inventory" className="btn btn-primary btn-sm">Inventory</Link>
+            <Link to="/reports" className="btn btn-outline btn-sm">Reports</Link>
+            <Link to="/waste-log" className="btn btn-outline btn-sm">Waste Log</Link>
             <Link to="/vaccination-reports" className="btn btn-outline btn-sm">
               Vaccination Reports →
             </Link>
           </div>
         </div>
 
-        {/* Overdue Vaccination Alerts */}
-        <div className="card">
-          <h2 className="section-title">Overdue Vaccination Alerts</h2>
-          <p className="text-sm text-muted mb-3">
-            Filter by branch and minimum days overdue to identify pets needing follow-up.
-          </p>
-
-          <div className="flex gap-3 mb-4" style={{ flexWrap: 'wrap', alignItems: 'flex-end' }}>
-            <div className="form-group" style={{ minWidth: 220, marginBottom: 0 }}>
+        <div className="card mb-4">
+          <div className="flex gap-3" style={{ flexWrap: 'wrap', alignItems: 'flex-end' }}>
+            <div className="form-group" style={{ minWidth: 260, marginBottom: 0 }}>
               <label>Branch</label>
               <select value={branchId} onChange={e => setBranchId(e.target.value)}>
-                <option value="">All branches</option>
+                <option value="">Select branch…</option>
                 {branches.map(b => (
                   <option key={b.branchId} value={b.branchId}>{b.name}</option>
                 ))}
@@ -78,22 +88,78 @@ export default function ManagerDashboardPage() {
                 onChange={e => setThreshold(parseInt(e.target.value) || 0)}
               />
             </div>
-            <button className="btn btn-primary" onClick={fetchOverdue} disabled={loading}>
-              {loading ? 'Loading…' : 'Apply Filter'}
+            <button className="btn btn-outline" onClick={() => loadDashboard(branchId)} disabled={!branchId || loading}>
+              {loading ? 'Refreshing…' : 'Refresh'}
             </button>
           </div>
+        </div>
 
-          {error && <div className="alert alert-error mb-3">{error}</div>}
+        {error && <div className="alert alert-error mb-3">{error}</div>}
 
-          {!queried && (
-            <p className="text-sm text-muted">Click "Apply Filter" to load results.</p>
+        {branchId && (
+          <div className="grid-3 mb-4">
+            {[
+              { label: 'Total Stock Items', value: stats?.totalStockItems ?? 0 },
+              { label: 'Low Stock Items', value: stats?.lowStockItems ?? 0 },
+              { label: 'Expired Stock Items', value: stats?.expiredStockItems ?? 0 },
+              { label: 'Overdue Vaccinations', value: stats?.overdueVaccinations ?? 0 },
+              { label: 'Waste Entries', value: stats?.wasteEntries ?? 0 },
+            ].map(card => (
+              <div key={card.label} className="card text-center">
+                <div className="text-sm text-muted">{card.label}</div>
+                <div className="text-2xl font-bold mt-1">{card.value}</div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        <div className="card mb-4">
+          <h2 className="section-title">Veterinarians in Branch</h2>
+          {!branchId
+            ? <p className="text-sm text-muted">Select a branch to view veterinarians.</p>
+            : loading && vets.length === 0
+            ? <div className="spinner" />
+            : vets.length === 0
+            ? <p className="text-sm text-muted">No veterinarians found for this branch.</p>
+            : (
+              <div className="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Name</th>
+                      <th>Specialization</th>
+                      <th>Species Expertise</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {vets.map(vet => (
+                      <tr key={vet.vet_id}>
+                        <td className="font-semibold">{vet.full_name}</td>
+                        <td>{vet.specialization || '-'}</td>
+                        <td>{vet.species_expertise || '-'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )
+          }
+        </div>
+
+        {/* Overdue Vaccination Alerts */}
+        <div className="card">
+          <h2 className="section-title">Overdue Vaccination Alerts</h2>
+          <p className="text-sm text-muted mb-3">
+            Pets in the selected branch that need follow-up.
+          </p>
+          {!branchId && (
+            <p className="text-sm text-muted">Select a branch to load overdue vaccinations.</p>
           )}
-
-          {queried && !loading && overdue.length === 0 && (
+          {branchId && loading && overdue.length === 0 && <div className="spinner" />}
+          {branchId && !loading && overdue.length === 0 && (
             <p className="text-sm text-muted">No overdue vaccinations match the current filter.</p>
           )}
-
-          {queried && overdue.length > 0 && (
+          {branchId && overdue.length > 0 && (
             <>
               <p className="text-sm text-muted mb-2">
                 {overdue.length} overdue record{overdue.length !== 1 ? 's' : ''} found

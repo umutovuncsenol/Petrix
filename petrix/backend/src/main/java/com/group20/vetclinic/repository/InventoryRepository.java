@@ -191,6 +191,25 @@ public class InventoryRepository {
             """, branchId);
     }
 
+    public List<Map<String, Object>> getStockConsumptionReport(int branchId) {
+        return jdbc.queryForList("""
+            SELECT
+                a.branch_id,
+                m.med_id,
+                m.name AS medication_name,
+                SUM(c.quantity) AS total_consumed,
+                COUNT(DISTINCT pr.rx_id) AS prescription_count
+            FROM PRESCRIPTION pr
+            JOIN CONTAINS c ON pr.rx_id = c.rx_id
+            JOIN MEDICATION m ON c.med_id = m.med_id
+            JOIN VISIT v ON pr.visit_id = v.visit_id
+            JOIN APPOINTMENT a ON v.appt_id = a.appt_id
+            WHERE a.branch_id = ?
+            GROUP BY a.branch_id, m.med_id, m.name
+            ORDER BY total_consumed DESC, m.name
+            """, branchId);
+    }
+
     public Map<String, Object> getReport(int branchId) {
         // Total stock value per medication
         List<Map<String, Object>> stockSummary = jdbc.queryForList("""

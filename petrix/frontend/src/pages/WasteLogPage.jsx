@@ -1,18 +1,35 @@
 import { useState, useEffect } from 'react'
+import { useAuth } from '../context/AuthContext'
 import { branchAPI, inventoryAPI } from '../services/api'
 
 export default function WasteLogPage() {
+  const { user } = useAuth()
   const [branches,    setBranches]    = useState([])
   const [medications, setMedications] = useState([])
   const [wasteLogs,   setWasteLogs]   = useState([])
-  const [form,        setForm]        = useState({ branchId: '', medId: '', quantity: 1, reason: '' })
+  const [form,        setForm]        = useState({
+    branchId: user?.branchId ? String(user.branchId) : '',
+    medId: '',
+    quantity: 1,
+    reason: '',
+  })
   const [msg,         setMsg]         = useState('')
   const [error,       setError]       = useState('')
   const [loading,     setLoading]     = useState(false)
 
   useEffect(() => {
-    branchAPI.getAll().then(r => setBranches(r.data))
-  }, [])
+    branchAPI.getAll()
+      .then(r => {
+        setBranches(r.data)
+        if (!form.branchId && r.data.length > 0) {
+          setForm(current => ({
+            ...current,
+            branchId: user?.branchId ? String(user.branchId) : String(r.data[0].branchId),
+          }))
+        }
+      })
+      .catch(() => setBranches([]))
+  }, [user?.branchId])
 
   useEffect(() => {
     if (!form.branchId) {
