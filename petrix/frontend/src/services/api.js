@@ -107,6 +107,7 @@ export const boardingAPI = {
   getVetActiveStays:   (vetId)     => api.get(`/boarding/vet/${vetId}/active-stays`),
   getOwnerPets:        (ownerId)   => api.get(`/boarding/owner/${ownerId}/pets`),
   getOwnerReservations:(ownerId)   => api.get(`/boarding/owner/${ownerId}/reservations`),
+  getOwnerQuote:       (ownerId, params) => api.get(`/boarding/owner/${ownerId}/quote`, { params }),
   createOwnerReservation: (ownerId, data) => api.post(`/boarding/owner/${ownerId}/reservations`, data),
   cancelOwnerReservation: (ownerId, id)   => api.put(`/boarding/owner/${ownerId}/reservations/${id}/cancel`),
   getOwnerFeedingLogs: (ownerId, id)      => api.get(`/boarding/owner/${ownerId}/reservations/${id}/feeding-logs`),

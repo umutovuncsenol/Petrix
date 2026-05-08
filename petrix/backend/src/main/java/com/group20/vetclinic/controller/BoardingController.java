@@ -110,6 +110,23 @@ public class BoardingController {
         return ResponseEntity.ok(boardingService.findOwnerReservations(ownerId));
     }
 
+    @GetMapping("/owner/{ownerId}/quote")
+    public ResponseEntity<?> getOwnerReservationQuote(
+            @PathVariable int ownerId,
+            @RequestParam int roomId,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
+            @RequestHeader(value = "Authorization", required = false) String authHeader) {
+        if (!isAuthorizedOwner(authHeader, ownerId)) {
+            return forbidden("You are not allowed to view boarding pricing for this owner.");
+        }
+        try {
+            return ResponseEntity.ok(boardingService.calculateOwnerQuote(ownerId, roomId, startDate, endDate));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+
     @PostMapping("/owner/{ownerId}/reservations")
     public ResponseEntity<?> createOwnerReservation(@PathVariable int ownerId,
                                                    @RequestBody Map<String, Object> body,

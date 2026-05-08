@@ -44,6 +44,10 @@ function money(value) {
   return `${Number(value || 0).toLocaleString('tr-TR')} TL`
 }
 
+function percent(value) {
+  return `${Math.round(Number(value || 0) * 100)}%`
+}
+
 function statusBadge(status) {
   const map = { active: 'badge-green', completed: 'badge-gray', cancelled: 'badge-red' }
   return <span className={`badge ${map[status] || 'badge-gray'}`}>{status}</span>
@@ -56,6 +60,8 @@ export default function OwnerBoardingPage() {
   const [reservations, setReservations] = useState([])
   const [availableRooms, setAvailableRooms] = useState([])
   const [selectedRoom, setSelectedRoom] = useState(null)
+  const [quote, setQuote] = useState(null)
+  const [quoteLoading, setQuoteLoading] = useState(false)
   const [selectedReservation, setSelectedReservation] = useState(null)
   const [feedingLogs, setFeedingLogs] = useState([])
   const [form, setForm] = useState({
@@ -97,13 +103,33 @@ export default function OwnerBoardingPage() {
     [branches, form.branchId]
   )
   const nights = nightsBetween(form.startDate, form.endDate)
-  const fee = selectedRoom ? estimatedFee(selectedRoom, nights) : 0
 
   function updateForm(patch) {
     setForm(prev => ({ ...prev, ...patch }))
     setError('')
     setMsg('')
     setSelectedRoom(null)
+    setQuote(null)
+  }
+
+  async function selectRoom(room) {
+    setSelectedRoom(room)
+    setQuote(null)
+    setQuoteLoading(true)
+    setError('')
+    setMsg('')
+    try {
+      const res = await boardingAPI.getOwnerQuote(user.userId, {
+        roomId: room.room_id,
+        startDate: form.startDate,
+        endDate: form.endDate,
+      })
+      setQuote(res.data)
+    } catch (err) {
+      setError(apiMessage(err, 'Could not calculate membership pricing.'))
+    } finally {
+      setQuoteLoading(false)
+    }
   }
 
   async function refreshReservations() {
@@ -173,6 +199,7 @@ export default function OwnerBoardingPage() {
       setMsg('Boarding reservation created successfully.')
       setAvailableRooms([])
       setSelectedRoom(null)
+      setQuote(null)
       setForm(prev => ({ ...prev, specialNotes: '' }))
       await refreshReservations()
     } catch (err) {
@@ -277,7 +304,7 @@ export default function OwnerBoardingPage() {
                     <div className="text-sm text-muted">Capacity {room.capacity || '-'}</div>
                     <div className="text-sm text-muted">{room.branch_name}</div>
                     <div className="font-semibold mt-2">{money(rate)} / night</div>
-                    <button className={`btn ${isSelected ? 'btn-primary' : 'btn-outline'} btn-sm mt-3`} onClick={() => setSelectedRoom(room)}>
+                    <button className={`btn ${isSelected ? 'btn-primary' : 'btn-outline'} btn-sm mt-3`} onClick={() => selectRoom(room)}>
                       {isSelected ? 'Selected' : 'Select Room'}
                     </button>
                   </div>
@@ -299,9 +326,29 @@ export default function OwnerBoardingPage() {
               <div>
                 <p><strong>Dates:</strong> {formatDate(form.startDate)} - {formatDate(form.endDate)}</p>
                 <p><strong>Nights:</strong> {nights}</p>
-                <p><strong>Estimated boarding fee:</strong> {money(fee)}</p>
+                <p><strong>Nightly rate:</strong> {money(quote?.nightlyRate ?? roomRate(selectedRoom))}</p>
               </div>
             </div>
+            {quoteLoading ? (
+              <div className="spinner" />
+            ) : quote && (
+              <div className="mt-3 mb-3" style={{ border: '1px solid var(--gray-200)', borderRadius: 'var(--radius)', padding: '1rem' }}>
+                <div className="grid-2">
+                  <div>
+                    <p><strong>Membership:</strong> {quote.planName}</p>
+                    <p><strong>Monthly free nights:</strong> {quote.freeNightAllowance}</p>
+                    <p><strong>Used free nights this month:</strong> {quote.usedFreeNightsThisMonth}</p>
+                    <p><strong>Applied free nights:</strong> {quote.appliedFreeNights}</p>
+                  </div>
+                  <div>
+                    <p><strong>Paid nights:</strong> {quote.paidNights}</p>
+                    <p><strong>Subtotal:</strong> {money(quote.subtotal)}</p>
+                    <p><strong>Membership discount:</strong> {percent(quote.discountRate)} ({money(quote.discountAmount)})</p>
+                    <p className="font-semibold"><strong>Estimated boarding fee:</strong> {money(quote.total)}</p>
+                  </div>
+                </div>
+              </div>
+            )}
             <div className="form-group">
               <label>Special Notes</label>
               <textarea

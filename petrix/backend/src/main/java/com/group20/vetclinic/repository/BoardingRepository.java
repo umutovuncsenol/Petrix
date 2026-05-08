@@ -135,6 +135,52 @@ public class BoardingRepository {
                 .orElse(null);
     }
 
+    public BigDecimal findRoomNightlyRate(int roomId) {
+        return jdbc.queryForList("""
+            SELECT nightly_rate
+            FROM ROOM_CAGE
+            WHERE room_id = :roomId
+            """, Map.of("roomId", roomId), BigDecimal.class)
+                .stream()
+                .findFirst()
+                .orElse(null);
+    }
+
+    public Map<String, Object> findActiveMembershipForOwner(int ownerId) {
+        return jdbc.queryForList("""
+            SELECT mp.name AS plan_name,
+                   mp.monthly_fee,
+                   mp.perks_description
+            FROM ENROLLS e
+            JOIN MEMBERSHIP_PLAN mp ON mp.plan_id = e.plan_id
+            WHERE e.owner_id = :ownerId
+              AND e.status = 'active'
+              AND e.start_date <= CURRENT_DATE
+              AND (e.end_date IS NULL OR e.end_date >= CURRENT_DATE)
+            ORDER BY mp.monthly_fee DESC, e.start_date DESC
+            LIMIT 1
+            """, Map.of("ownerId", ownerId))
+                .stream()
+                .findFirst()
+                .orElse(null);
+    }
+
+    public int countUsedFreeBoardingNights(int ownerId, LocalDate monthStart, LocalDate monthEnd) {
+        Number nights = jdbc.queryForObject("""
+            SELECT COALESCE(SUM(LEAST(br.end_date, :monthEnd) - GREATEST(br.start_date, :monthStart)), 0)
+            FROM BOARDING_RESERVATION br
+            JOIN PET p ON p.pet_id = br.pet_id
+            WHERE p.owner_id = :ownerId
+              AND br.status IN ('active', 'completed')
+              AND br.start_date < :monthEnd
+              AND br.end_date > :monthStart
+            """, new MapSqlParameterSource()
+                .addValue("ownerId", ownerId)
+                .addValue("monthStart", monthStart)
+                .addValue("monthEnd", monthEnd), Number.class);
+        return nights == null ? 0 : nights.intValue();
+    }
+
     public int createRoom(int branchId, String roomNo, String roomType, int capacity,
                           BigDecimal nightlyRate, String status) {
         Integer id = jdbc.queryForObject("""

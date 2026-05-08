@@ -5,8 +5,11 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
+import java.util.LinkedHashMap;
 import java.util.Set;
 import java.util.List;
 import java.util.Map;
@@ -38,6 +41,54 @@ public class BoardingService {
             throw new IllegalArgumentException("Veterinarian not found.");
         }
         return boardingRepo.findActiveStaysForVet(vetId);
+    }
+
+    public Map<String, Object> calculateOwnerQuote(int ownerId, int roomId,
+                                                   LocalDate startDate, LocalDate endDate) {
+        validateDateRange(startDate, endDate);
+
+        BigDecimal nightlyRate = boardingRepo.findRoomNightlyRate(roomId);
+        if (nightlyRate == null) {
+            throw new IllegalArgumentException("Selected room does not exist.");
+        }
+
+        int nights = Math.toIntExact(ChronoUnit.DAYS.between(startDate, endDate));
+        Map<String, Object> membership = boardingRepo.findActiveMembershipForOwner(ownerId);
+        String planName = membership == null ? "None" : String.valueOf(membership.get("plan_name"));
+        BigDecimal discountRate = boardingDiscountRate(planName);
+        int freeNightAllowance = freeNightAllowance(planName);
+
+        LocalDate monthStart = startDate.withDayOfMonth(1);
+        LocalDate monthEnd = monthStart.plusMonths(1);
+        int usedFreeNights = Math.min(
+                freeNightAllowance,
+                boardingRepo.countUsedFreeBoardingNights(ownerId, monthStart, monthEnd)
+        );
+        int remainingFreeNights = Math.max(0, freeNightAllowance - usedFreeNights);
+        int appliedFreeNights = Math.min(nights, remainingFreeNights);
+        int paidNights = nights - appliedFreeNights;
+
+        BigDecimal subtotal = nightlyRate.multiply(BigDecimal.valueOf(nights));
+        BigDecimal freeNightValue = nightlyRate.multiply(BigDecimal.valueOf(appliedFreeNights));
+        BigDecimal discountBase = nightlyRate.multiply(BigDecimal.valueOf(paidNights));
+        BigDecimal discountAmount = discountBase.multiply(discountRate);
+        BigDecimal total = discountBase.subtract(discountAmount);
+
+        Map<String, Object> quote = new LinkedHashMap<>();
+        quote.put("planName", planName);
+        quote.put("discountRate", discountRate);
+        quote.put("freeNightAllowance", freeNightAllowance);
+        quote.put("usedFreeNightsThisMonth", usedFreeNights);
+        quote.put("remainingFreeNightsBeforeBooking", remainingFreeNights);
+        quote.put("appliedFreeNights", appliedFreeNights);
+        quote.put("paidNights", paidNights);
+        quote.put("nights", nights);
+        quote.put("nightlyRate", money(nightlyRate));
+        quote.put("subtotal", money(subtotal));
+        quote.put("freeNightValue", money(freeNightValue));
+        quote.put("discountAmount", money(discountAmount));
+        quote.put("total", money(total));
+        return quote;
     }
 
     public int createRoom(Map<String, Object> body) {
@@ -236,5 +287,22 @@ public class BoardingService {
             throw new IllegalArgumentException(message);
         }
         return value.toString().trim();
+    }
+
+    private BigDecimal boardingDiscountRate(String planName) {
+        if ("Basic".equalsIgnoreCase(planName)) return new BigDecimal("0.05");
+        if ("Silver".equalsIgnoreCase(planName)) return new BigDecimal("0.10");
+        if ("Gold".equalsIgnoreCase(planName)) return new BigDecimal("0.20");
+        return BigDecimal.ZERO;
+    }
+
+    private int freeNightAllowance(String planName) {
+        if ("Silver".equalsIgnoreCase(planName)) return 1;
+        if ("Gold".equalsIgnoreCase(planName)) return 3;
+        return 0;
+    }
+
+    private BigDecimal money(BigDecimal value) {
+        return value.setScale(2, RoundingMode.HALF_UP);
     }
 }

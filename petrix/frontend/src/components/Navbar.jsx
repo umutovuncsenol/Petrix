@@ -42,6 +42,7 @@ export default function Navbar() {
                 <Link to="/" className="text-sm font-semibold" style={{ color: 'var(--gray-600)' }}>Dashboard</Link>
                 <Link to="/dashboard" className="text-sm font-semibold" style={{ color: 'var(--gray-600)' }}>My Pets</Link>
                 <Link to="/book-appointment" className="text-sm font-semibold" style={{ color: 'var(--gray-600)' }}>Book Appointment</Link>
+                <Link to="/owner/boarding" className="text-sm font-semibold" style={{ color: 'var(--gray-600)' }}>Pet Hotel</Link>
                 <Link to="/membership" className="text-sm font-semibold" style={{ color: 'var(--gray-600)' }}>Membership</Link>
               </>
             )}

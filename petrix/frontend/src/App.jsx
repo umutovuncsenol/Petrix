@@ -16,6 +16,7 @@ import ManagerDashboardPage from './pages/ManagerDashboardPage'
 import AdminDashboardPage from './pages/AdminDashboardPage'
 import InventoryPage from './pages/InventoryPage'
 import VaccinationReportsPage from './pages/VaccinationReportsPage'
+import OwnerBoardingPage from './pages/OwnerBoardingPage'
 
 function AppRoutes() {
   const { user } = useAuth()
@@ -55,6 +56,9 @@ function AppRoutes() {
         } />
         <Route path="/membership" element={
           <ProtectedRoute allowedRoles={['OWNER']}><MembershipPage /></ProtectedRoute>
+        } />
+        <Route path="/owner/boarding" element={
+          <ProtectedRoute allowedRoles={['OWNER']}><OwnerBoardingPage /></ProtectedRoute>
         } />
 
         {/* Vet routes */}

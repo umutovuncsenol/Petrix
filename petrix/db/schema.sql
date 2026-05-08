@@ -320,6 +320,7 @@ CREATE TABLE IF NOT EXISTS VET_RATING (
 
 -- ─── VIEWS ───────────────────────────────────────────────────────────────────
 
+DROP VIEW IF EXISTS PetMedicalTimeline;
 CREATE OR REPLACE VIEW PetMedicalTimeline AS
 SELECT
     p.pet_id,
