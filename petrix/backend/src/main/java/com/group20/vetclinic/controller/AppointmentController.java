@@ -8,6 +8,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.List;
@@ -18,13 +19,20 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class AppointmentController {
 
-    private static final int MAX_DAILY_APPOINTMENTS_PER_VET = 8;
+    private static final int MAX_DAILY_APPOINTMENTS_PER_VET = 20;
 
     private final AppointmentRepository apptRepo;
     private final JwtUtil jwtUtil;
 
     @GetMapping
-    public List<Appointment> getByOwner(@RequestParam int ownerId) {
+    public List<Appointment> getByOwner(
+            @RequestParam int ownerId,
+            @RequestParam(required = false) String fromDate,
+            @RequestParam(required = false) String toDate) {
+        if (fromDate != null && toDate != null) {
+            return apptRepo.findByOwnerBetweenDates(ownerId,
+                LocalDate.parse(fromDate), LocalDate.parse(toDate));
+        }
         return apptRepo.findByOwner(ownerId);
     }
 
@@ -77,7 +85,7 @@ public class AppointmentController {
             if (apptRepo.countScheduledAppointmentsForVetOnDate(vetId, startTime) >= MAX_DAILY_APPOINTMENTS_PER_VET) {
                 return ResponseEntity.badRequest().body(Map.of(
                         "error",
-                        "This veterinarian has reached the maximum number of appointments for the selected day."
+                        "This veterinarian is fully booked for the selected day."
                 ));
             }
 

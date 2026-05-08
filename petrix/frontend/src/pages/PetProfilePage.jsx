@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { useParams, useNavigate, useLocation } from 'react-router-dom'
+import { useParams, useNavigate } from 'react-router-dom'
 import { petAPI, vetAPI, inventoryAPI, vaccinationAPI } from '../services/api'
 import { useAuth } from '../context/AuthContext'
 
@@ -34,6 +34,13 @@ export default function PetProfilePage() {
   const [tab,       setTab]       = useState(0)
   const [loading,   setLoading]   = useState(true)
 
+  // Edit pet state
+  const [showEditForm, setShowEditForm] = useState(false)
+  const [editForm,     setEditForm]     = useState({ name: '', species: '', breed: '', birthDate: '' })
+  const [editMsg,      setEditMsg]      = useState('')
+  const [editError,    setEditError]    = useState('')
+  const [editBusy,     setEditBusy]     = useState(false)
+
   // Book vaccination state
   const [showBookForm, setShowBookForm] = useState(false)
   const [vaccines,     setVaccines]     = useState([])
@@ -59,6 +66,48 @@ export default function PetProfilePage() {
       setAllergies(al.data)
     }).finally(() => setLoading(false))
   }, [petId])
+
+  function openEditForm() {
+    setEditMsg('')
+    setEditError('')
+    setEditForm({
+      name:      pet.name || '',
+      species:   pet.species || '',
+      breed:     pet.breed || '',
+      birthDate: pet.birthDate ? pet.birthDate.slice(0, 10) : '',
+    })
+    setShowEditForm(true)
+  }
+
+  async function submitEdit() {
+    if (!editForm.name || !editForm.species) {
+      setEditError('Name and species are required.')
+      return
+    }
+    setEditBusy(true)
+    setEditError('')
+    try {
+      await petAPI.update(petId, editForm)
+      const updated = await petAPI.getById(petId)
+      setPet(updated.data)
+      setEditMsg('Pet updated successfully.')
+      setShowEditForm(false)
+    } catch (e) {
+      setEditError(e.response?.data?.error || 'Failed to update pet.')
+    } finally {
+      setEditBusy(false)
+    }
+  }
+
+  async function deletePet() {
+    if (!confirm('Delete this pet? This cannot be undone.')) return
+    try {
+      await petAPI.delete(petId)
+      navigate('/')
+    } catch (e) {
+      alert(e.response?.data?.error || 'Failed to delete pet.')
+    }
+  }
 
   async function openBookForm() {
     setBookMsg('')
@@ -131,18 +180,68 @@ export default function PetProfilePage() {
 
         {/* Pet header */}
         <div className="card mb-4">
-          <div className="flex items-center gap-4">
-            <div className="avatar" style={{ width: '4rem', height: '4rem', fontSize: '1.5rem' }}>
-              {pet.species === 'Cat' ? '🐱' : pet.species === 'Dog' ? '🐶' : pet.species === 'Bird' ? '🐦' : '🐾'}
-            </div>
-            <div>
-              <h1 className="text-2xl font-bold">{pet.name}</h1>
-              <div className="text-sm text-muted">
-                {pet.species}{pet.breed ? ` · ${pet.breed}` : ''}
-                {age !== null ? ` · ${age} year${age !== 1 ? 's' : ''} old` : ''}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <div className="avatar" style={{ width: '4rem', height: '4rem', fontSize: '1.5rem' }}>
+                {pet.species === 'Cat' ? '🐱' : pet.species === 'Dog' ? '🐶' : pet.species === 'Bird' ? '🐦' : '🐾'}
+              </div>
+              <div>
+                <h1 className="text-2xl font-bold">{pet.name}</h1>
+                <div className="text-sm text-muted">
+                  {pet.species}{pet.breed ? ` · ${pet.breed}` : ''}
+                  {age !== null ? ` · ${age} year${age !== 1 ? 's' : ''} old` : ''}
+                </div>
               </div>
             </div>
+            {isOwner && (
+              <div className="flex gap-2">
+                <button className="btn btn-outline btn-sm" onClick={openEditForm}>Edit Pet</button>
+                <button className="btn btn-danger btn-sm" onClick={deletePet}>Delete Pet</button>
+              </div>
+            )}
           </div>
+
+          {editMsg && <div className="alert alert-success mt-3">{editMsg}</div>}
+
+          {isOwner && showEditForm && (
+            <div style={{
+              border: '1.5px solid var(--green-200)', borderRadius: 'var(--radius)',
+              padding: '1rem', marginTop: '1rem', background: 'var(--green-50)',
+            }}>
+              <h3 className="font-semibold mb-3">Edit Pet</h3>
+              {editError && <div className="alert alert-error mb-2">{editError}</div>}
+              <div className="grid-2">
+                <div className="form-group">
+                  <label>Name</label>
+                  <input value={editForm.name}
+                    onChange={e => setEditForm(f => ({ ...f, name: e.target.value }))} />
+                </div>
+                <div className="form-group">
+                  <label>Species</label>
+                  <input value={editForm.species}
+                    onChange={e => setEditForm(f => ({ ...f, species: e.target.value }))} />
+                </div>
+                <div className="form-group">
+                  <label>Breed <span className="text-muted">(optional)</span></label>
+                  <input value={editForm.breed}
+                    onChange={e => setEditForm(f => ({ ...f, breed: e.target.value }))} />
+                </div>
+                <div className="form-group">
+                  <label>Birth Date <span className="text-muted">(optional)</span></label>
+                  <input type="date" value={editForm.birthDate}
+                    onChange={e => setEditForm(f => ({ ...f, birthDate: e.target.value }))} />
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <button className="btn btn-primary" onClick={submitEdit} disabled={editBusy}>
+                  {editBusy ? 'Saving…' : 'Save Changes'}
+                </button>
+                <button className="btn btn-outline" onClick={() => { setShowEditForm(false); setEditError('') }}>
+                  Cancel
+                </button>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Tabs */}
@@ -280,7 +379,7 @@ export default function PetProfilePage() {
                 <div className="table-wrap">
                   <table>
                     <thead>
-                      <tr><th>Vaccine</th><th>Administered</th><th>Batch</th><th>Next Due</th><th>Status</th></tr>
+                      <tr><th>Vaccine</th><th>Administered</th><th>Batch</th><th>Next Due</th><th>Status</th><th></th></tr>
                     </thead>
                     <tbody>
                       {vaccins.map(v => (
@@ -290,6 +389,14 @@ export default function PetProfilePage() {
                           <td className="text-sm text-muted">{v.batchNumber || '—'}</td>
                           <td className="text-sm">{v.nextDueDate ? new Date(v.nextDueDate).toLocaleDateString() : '—'}</td>
                           <td>{vaccStatusBadge(v.status)}</td>
+                          <td>
+                            {(v.status === 'upcoming' || v.status === 'overdue') && isOwner && (
+                              <button className="btn btn-outline btn-sm"
+                                onClick={() => navigate(`/book-appointment?vaccineType=${encodeURIComponent(v.vaccineName)}&recommendedVetId=${v.vetId}`)}>
+                                Book Appointment
+                              </button>
+                            )}
+                          </td>
                         </tr>
                       ))}
                     </tbody>

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { useNavigate, useLocation } from 'react-router-dom'
+import { useNavigate, useLocation, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { branchAPI, vetAPI, petAPI, appointmentAPI, membershipAPI } from '../services/api'
 
@@ -44,10 +44,10 @@ function getBookingError(err) {
     }
   }
 
-  if (backendMessage.includes('maximum number of appointments')) {
+  if (backendMessage.includes('fully booked')) {
     return {
       type: 'blocking',
-      message: 'This veterinarian has reached the maximum number of appointments for the selected day. Please choose another date or veterinarian.',
+      message: 'This veterinarian is fully booked for the selected day. Please choose another date or veterinarian.',
     }
   }
 
@@ -75,6 +75,7 @@ export default function AppointmentBookingPage() {
   const { user }     = useAuth()
   const navigate     = useNavigate()
   const location     = useLocation()
+  const [searchParams] = useSearchParams()
 
   const [step, setStep] = useState(1) // 1=filter vets, 2=pick time, 3=confirm
 
@@ -96,7 +97,7 @@ export default function AppointmentBookingPage() {
 
   // Step 3
   const [selectedPet,     setSelectedPet]     = useState('')
-  const [reason,          setReason]          = useState(location.state?.reason || '')
+  const [reason,          setReason]          = useState(location.state?.reason || searchParams.get('vaccineType') || '')
   const [loading,         setLoading]         = useState(false)
   const [error,           setError]           = useState(null)
   const [success,         setSuccess]         = useState(false)
@@ -111,6 +112,15 @@ export default function AppointmentBookingPage() {
       setMembershipPlan(activePlan?.plan_name || '')
     })
   }, [user])
+
+  useEffect(() => {
+    const recVetId = searchParams.get('recommendedVetId')
+    if (recVetId && branches.length > 0) {
+      vetAPI.getById(parseInt(recVetId))
+        .then(res => selectVet(res.data))
+        .catch(() => {})
+    }
+  }, [branches])
 
   async function searchVets() {
     setError(null)

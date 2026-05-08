@@ -46,6 +46,23 @@ public class PetController {
         return ResponseEntity.ok(Map.of("petId", id));
     }
 
+    @PutMapping("/{id}")
+    public ResponseEntity<?> updatePet(@PathVariable int id, @RequestBody Map<String, Object> body) {
+        String name    = (String) body.get("name");
+        String species = (String) body.get("species");
+        String breed   = (String) body.getOrDefault("breed", "");
+        String bd      = (String) body.getOrDefault("birthDate", null);
+        LocalDate birthDate = bd != null ? LocalDate.parse(bd) : null;
+        petRepo.update(id, name, species, breed, birthDate);
+        return ResponseEntity.ok().build();
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<?> deletePet(@PathVariable int id) {
+        petRepo.delete(id);
+        return ResponseEntity.ok().build();
+    }
+
     @GetMapping("/{id}/allergies")
     public List<Map<String, Object>> getAllergies(@PathVariable int id) {
         return petRepo.findAllergies(id);

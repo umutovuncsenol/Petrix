@@ -92,4 +92,14 @@ public class VaccinationController {
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
         }
     }
+
+    @DeleteMapping("/records/{id}")
+    public ResponseEntity<?> deleteRecord(@PathVariable int id) {
+        try {
+            vaccRepo.deleteRecord(id);
+            return ResponseEntity.ok().build();
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
 }

@@ -22,6 +22,7 @@ import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 import java.util.List;
+import org.springframework.http.HttpMethod;
 
 @Configuration
 @EnableWebSecurity
@@ -46,6 +47,12 @@ public class SecurityConfig {
                 .requestMatchers("/manager/**", "/api/manager/**").hasRole("CLINIC_MANAGER")
                 .requestMatchers("/api/branches/**").permitAll()
                 .requestMatchers("/api/veterinarians/**").permitAll()
+                .requestMatchers(HttpMethod.POST,   "/api/visits").hasRole("VET")
+                .requestMatchers(HttpMethod.POST,   "/api/visits/*/diagnoses").hasRole("VET")
+                .requestMatchers(HttpMethod.POST,   "/api/visits/*/prescriptions").hasRole("VET")
+                .requestMatchers(HttpMethod.PUT,    "/api/inventory/restock").hasRole("CLINIC_MANAGER")
+                .requestMatchers(HttpMethod.POST,   "/api/inventory/waste").hasRole("CLINIC_MANAGER")
+                .requestMatchers(HttpMethod.PUT,    "/api/inventory/expire").hasRole("CLINIC_MANAGER")
                 .anyRequest().authenticated()
             )
             .authenticationProvider(authenticationProvider())
