@@ -83,14 +83,20 @@ export default function RegisterPage() {
               <label>First name</label>
               <input placeholder="Jane"
                 value={form.fullName.split(' ')[0] || ''}
-                onChange={e => set('fullName', e.target.value + ' ' + (form.fullName.split(' ').slice(1).join(' ')))}
+                onChange={e => {
+                  const last = form.fullName.split(' ').slice(1).join(' ')
+                  set('fullName', (e.target.value + (last ? ' ' + last : '')).trim())
+                }}
                 required />
             </div>
             <div className="form-group">
               <label>Last name</label>
               <input placeholder="Doe"
                 value={form.fullName.split(' ').slice(1).join(' ')}
-                onChange={e => set('fullName', (form.fullName.split(' ')[0] || '') + ' ' + e.target.value)}
+                onChange={e => {
+                  const first = form.fullName.split(' ')[0] || ''
+                  set('fullName', (first + (e.target.value ? ' ' + e.target.value : '')).trim())
+                }}
                 required />
             </div>
           </div>

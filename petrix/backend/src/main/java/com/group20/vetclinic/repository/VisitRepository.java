@@ -104,8 +104,10 @@ public class VisitRepository {
     }
 
     public void deductStock(int branchId, int medId, int qty) {
-        jdbc.update("UPDATE STOCKED_AS SET quantity = quantity - ? WHERE branch_id = ? AND med_id = ?",
+        int rows = jdbc.update("UPDATE STOCKED_AS SET quantity = quantity - ? WHERE branch_id = ? AND med_id = ?",
                     qty, branchId, medId);
+        if (rows == 0)
+            throw new IllegalStateException("Stock record not found for med_id=" + medId + " branch_id=" + branchId);
     }
 
     public Map<String, Object> findStockForMedication(int branchId, int medId) {

@@ -124,7 +124,8 @@ CREATE TABLE IF NOT EXISTS APPOINTMENT (
     duration   INTEGER NOT NULL DEFAULT 30 CHECK (duration > 0),
     status     VARCHAR(20) NOT NULL DEFAULT 'scheduled'
                CHECK (status IN ('scheduled','completed','cancelled')),
-    reason     VARCHAR(255),
+    reason        VARCHAR(255),
+    reminder_sent BOOLEAN NOT NULL DEFAULT FALSE,
     EXCLUDE USING GIST (
         vet_id WITH =,
         tsrange(start_time, start_time + duration * INTERVAL '1 minute', '[)') WITH &&
