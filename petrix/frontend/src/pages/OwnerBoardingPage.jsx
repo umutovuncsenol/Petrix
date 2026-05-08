@@ -378,8 +378,9 @@ export default function OwnerBoardingPage() {
                 </thead>
                 <tbody>
                   {reservations.map(reservation => {
-                    const resNights = nightsBetween(reservation.start_date, reservation.end_date)
-                    const resFee = estimatedFee(reservation, resNights)
+                    const resFee = reservation.final_fee != null
+                      ? reservation.final_fee
+                      : estimatedFee(reservation, nightsBetween(reservation.start_date, reservation.end_date))
                     return (
                       <tr key={reservation.reservation_id}>
                         <td className="font-semibold">{reservation.pet_name}</td>

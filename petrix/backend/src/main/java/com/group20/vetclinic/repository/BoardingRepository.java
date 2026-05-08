@@ -335,17 +335,23 @@ public class BoardingRepository {
 
     public int createReservation(int petId, int roomId, LocalDate startDate,
                                  LocalDate endDate, String specialNotes) {
+        return createReservation(petId, roomId, startDate, endDate, specialNotes, null);
+    }
+
+    public int createReservation(int petId, int roomId, LocalDate startDate,
+                                 LocalDate endDate, String specialNotes, java.math.BigDecimal finalFee) {
         Integer id = jdbc.queryForObject("""
             INSERT INTO BOARDING_RESERVATION
-                (pet_id, room_id, start_date, end_date, status, special_notes)
-            VALUES (:petId, :roomId, :startDate, :endDate, 'active', :specialNotes)
+                (pet_id, room_id, start_date, end_date, status, special_notes, final_fee)
+            VALUES (:petId, :roomId, :startDate, :endDate, 'active', :specialNotes, :finalFee)
             RETURNING reservation_id
             """, new MapSqlParameterSource()
                 .addValue("petId", petId)
                 .addValue("roomId", roomId)
                 .addValue("startDate", startDate)
                 .addValue("endDate", endDate)
-                .addValue("specialNotes", specialNotes), Integer.class);
+                .addValue("specialNotes", specialNotes)
+                .addValue("finalFee", finalFee), Integer.class);
         return id == null ? 0 : id;
     }
 
@@ -367,6 +373,7 @@ public class BoardingRepository {
                    br.end_date,
                    br.status,
                    br.special_notes,
+                   br.final_fee,
                    br.created_at
             FROM BOARDING_RESERVATION br
             JOIN PET p ON p.pet_id = br.pet_id

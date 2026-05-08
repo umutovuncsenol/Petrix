@@ -88,6 +88,7 @@ public class BoardingService {
         quote.put("freeNightValue", money(freeNightValue));
         quote.put("discountAmount", money(discountAmount));
         quote.put("total", money(total));
+        quote.put("totalRaw", total.setScale(2, RoundingMode.HALF_UP));
         return quote;
     }
 
@@ -150,7 +151,8 @@ public class BoardingService {
             throw new IllegalArgumentException("This pet already has an active boarding reservation in the selected date range.");
         }
 
-        return boardingRepo.createReservation(petId, roomId, startDate, endDate, specialNotes);
+        BigDecimal finalFee = body.get("finalFee") instanceof BigDecimal bd ? bd : null;
+        return boardingRepo.createReservation(petId, roomId, startDate, endDate, specialNotes, finalFee);
     }
 
     public int createOwnerReservation(int ownerId, Map<String, Object> body) {
@@ -158,6 +160,13 @@ public class BoardingService {
         if (!boardingRepo.petBelongsToOwner(petId, ownerId)) {
             throw new SecurityException("You can only create boarding reservations for your own pets.");
         }
+        int roomId = intValue(body.get("roomId"), "roomId is required.");
+        LocalDate startDate = LocalDate.parse((String) body.get("startDate"));
+        LocalDate endDate   = LocalDate.parse((String) body.get("endDate"));
+        Map<String, Object> quote = calculateOwnerQuote(ownerId, roomId, startDate, endDate);
+        BigDecimal finalFee = (BigDecimal) quote.get("totalRaw");
+        body = new java.util.HashMap<>(body);
+        body.put("finalFee", finalFee);
         return createReservation(body);
     }
 

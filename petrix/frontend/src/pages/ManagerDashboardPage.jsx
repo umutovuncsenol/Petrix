@@ -60,6 +60,7 @@ export default function ManagerDashboardPage() {
           </div>
           <div className="flex gap-2">
             <Link to="/inventory" className="btn btn-primary btn-sm">Inventory</Link>
+            <Link to="/boarding" className="btn btn-outline btn-sm">Pet Hotel</Link>
             <Link to="/reports" className="btn btn-outline btn-sm">Reports</Link>
             <Link to="/waste-log" className="btn btn-outline btn-sm">Waste Log</Link>
             <Link to="/vaccination-reports" className="btn btn-outline btn-sm">

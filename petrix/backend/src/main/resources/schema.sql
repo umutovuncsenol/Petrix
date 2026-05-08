@@ -32,6 +32,7 @@ CREATE TABLE IF NOT EXISTS USERS (
 
 ALTER TABLE USERS ADD COLUMN IF NOT EXISTS branch_id INTEGER REFERENCES BRANCH(branch_id);
 ALTER TABLE APPOINTMENT ADD COLUMN IF NOT EXISTS reminder_sent BOOLEAN NOT NULL DEFAULT FALSE;
+ALTER TABLE BOARDING_RESERVATION ADD COLUMN IF NOT EXISTS final_fee NUMERIC(10,2);
 
 -- 0.2 USER_ROLE (USERS × ROLES)
 CREATE TABLE IF NOT EXISTS USER_ROLE (
@@ -466,7 +467,7 @@ WHERE NOT EXISTS (
 
 INSERT INTO MEMBERSHIP_PLAN (name, monthly_fee, perks_description) VALUES
     ('Basic',  199, '5% discount on consultation • Standard appointment slots • Email reminders'),
-    ('Silver', 399, '10% discount on consultation • Priority appointment slots • 1 free boarding night/month • SMS + email reminders'),
+    ('Silver', 399, '10% discount on consultation • Priority appointment slots • 1 free boarding night/month • email reminders'),
     ('Gold',   699, '20% discount on consultation • VIP appointment slots • 3 free boarding nights/month • Dedicated vet line')
 ON CONFLICT DO NOTHING;
 

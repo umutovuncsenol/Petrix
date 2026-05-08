@@ -17,6 +17,7 @@ import AdminDashboardPage from './pages/AdminDashboardPage'
 import InventoryPage from './pages/InventoryPage'
 import VaccinationReportsPage from './pages/VaccinationReportsPage'
 import OwnerBoardingPage from './pages/OwnerBoardingPage'
+import BoardingPage from './pages/BoardingPage'
 
 function AppRoutes() {
   const { user } = useAuth()
@@ -73,6 +74,9 @@ function AppRoutes() {
         } />
         <Route path="/inventory" element={
           <ProtectedRoute allowedRoles={['CLINIC_MANAGER']}><InventoryPage /></ProtectedRoute>
+        } />
+        <Route path="/boarding" element={
+          <ProtectedRoute allowedRoles={['CLINIC_MANAGER']}><BoardingPage /></ProtectedRoute>
         } />
 
         {/* Vaccination reports */}

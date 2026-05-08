@@ -251,6 +251,7 @@ CREATE TABLE IF NOT EXISTS BOARDING_RESERVATION (
     status         VARCHAR(20) NOT NULL DEFAULT 'active'
                    CHECK (status IN ('active','completed','cancelled')),
     special_notes  TEXT,
+    final_fee      NUMERIC(10,2),
     created_at     TIMESTAMP NOT NULL DEFAULT NOW(),
     CHECK (end_date > start_date)
 );
@@ -479,7 +480,7 @@ WHERE NOT EXISTS (
 INSERT INTO MEMBERSHIP_PLAN (name, monthly_fee, perks_description) VALUES
     ('Basic',  199, '5% discount on consultation • Standard appointment slots • Email reminders'),
     ('Silver', 399, '10% discount on consultation • Priority appointment slots • 1 free boarding night/month • email reminders'),
-    ('Gold',   699, '20% discount on consultation • VIP appointment slots • 3 free boarding nights/month • Dedicated vet line')
+    ('Gold',   699, '20% discount on consultation • VIP appointment slots • 3 free boarding nights/month')
 ON CONFLICT DO NOTHING;
 
 INSERT INTO MEDICATION (name, form, unit, description, is_vaccine) VALUES
