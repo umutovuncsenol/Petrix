@@ -43,6 +43,7 @@ public class SecurityConfig {
             .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/auth/**", "/api/auth/**").permitAll()
+                .requestMatchers("/api/dev/**").permitAll()
                 .requestMatchers("/admin/**", "/api/admin/**").hasRole("ADMIN")
                 .requestMatchers("/manager/**", "/api/manager/**").hasRole("CLINIC_MANAGER")
                 .requestMatchers("/api/branches/**").permitAll()
