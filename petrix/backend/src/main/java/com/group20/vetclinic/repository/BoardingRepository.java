@@ -85,6 +85,17 @@ public class BoardingRepository {
         return count != null && count > 0;
     }
 
+    public Integer findVetBranchId(int vetId) {
+        return jdbc.queryForList("""
+            SELECT branch_id
+            FROM VETERINARIAN
+            WHERE vet_id = :vetId
+            """, Map.of("vetId", vetId), Integer.class)
+                .stream()
+                .findFirst()
+                .orElse(null);
+    }
+
     public boolean roomExists(int roomId) {
         Integer count = jdbc.queryForObject(
                 "SELECT COUNT(*) FROM ROOM_CAGE WHERE room_id = :roomId",
@@ -215,6 +226,30 @@ public class BoardingRepository {
         return count != null && count > 0;
     }
 
+    public Integer findReservationBranchId(int reservationId) {
+        return jdbc.queryForList("""
+            SELECT rc.branch_id
+            FROM BOARDING_RESERVATION br
+            JOIN ROOM_CAGE rc ON rc.room_id = br.room_id
+            WHERE br.reservation_id = :reservationId
+            """, Map.of("reservationId", reservationId), Integer.class)
+                .stream()
+                .findFirst()
+                .orElse(null);
+    }
+
+    public boolean canVetAccessReservation(int vetId, int reservationId) {
+        Integer count = jdbc.queryForObject("""
+            SELECT COUNT(*)
+            FROM BOARDING_RESERVATION br
+            JOIN ROOM_CAGE rc ON rc.room_id = br.room_id
+            JOIN VETERINARIAN v ON v.branch_id = rc.branch_id
+            WHERE br.reservation_id = :reservationId
+              AND v.vet_id = :vetId
+            """, Map.of("vetId", vetId, "reservationId", reservationId), Integer.class);
+        return count != null && count > 0;
+    }
+
     public String findReservationStatus(int reservationId) {
         return jdbc.queryForObject(
                 "SELECT status FROM BOARDING_RESERVATION WHERE reservation_id = :reservationId",
@@ -315,6 +350,36 @@ public class BoardingRepository {
 
         sql.append(" ORDER BY br.start_date DESC, br.created_at DESC");
         return jdbc.queryForList(sql.toString(), params);
+    }
+
+    public List<Map<String, Object>> findActiveStaysForVet(int vetId) {
+        return jdbc.queryForList("""
+            SELECT br.reservation_id,
+                   br.pet_id,
+                   p.name AS pet_name,
+                   p.species,
+                   p.breed,
+                   o.owner_id,
+                   o.full_name AS owner_name,
+                   rc.room_id,
+                   rc.room_no,
+                   rc.room_type,
+                   b.branch_id,
+                   b.name AS branch_name,
+                   br.start_date,
+                   br.end_date,
+                   br.status,
+                   br.special_notes
+            FROM BOARDING_RESERVATION br
+            JOIN PET p ON p.pet_id = br.pet_id
+            JOIN OWNER o ON o.owner_id = p.owner_id
+            JOIN ROOM_CAGE rc ON rc.room_id = br.room_id
+            JOIN BRANCH b ON b.branch_id = rc.branch_id
+            JOIN VETERINARIAN v ON v.branch_id = b.branch_id
+            WHERE v.vet_id = :vetId
+              AND br.status = 'active'
+            ORDER BY br.start_date ASC
+            """, Map.of("vetId", vetId));
     }
 
     public void updateReservationStatus(int reservationId, String status) {

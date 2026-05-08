@@ -33,6 +33,13 @@ public class BoardingService {
         return boardingRepo.findPetsByOwner(ownerId);
     }
 
+    public List<Map<String, Object>> findActiveStaysForVet(int vetId) {
+        if (boardingRepo.findVetBranchId(vetId) == null) {
+            throw new IllegalArgumentException("Veterinarian not found.");
+        }
+        return boardingRepo.findActiveStaysForVet(vetId);
+    }
+
     public int createRoom(Map<String, Object> body) {
         int branchId = intValue(body.get("branchId"), "branchId is required.");
         String roomNo = stringValue(body.get("roomNo"), "roomNo is required.");
@@ -138,6 +145,9 @@ public class BoardingService {
             throw new IllegalArgumentException("Cannot add feeding logs to a cancelled reservation.");
         }
 
+        if (body.get("feedTime") == null || body.get("feedTime").toString().isBlank()) {
+            throw new IllegalArgumentException("Feed time is required.");
+        }
         LocalDateTime feedTime = LocalDateTime.parse((String) body.get("feedTime"));
         String food = (String) body.getOrDefault("food", "");
         String amount = (String) body.getOrDefault("amount", "");
@@ -154,6 +164,14 @@ public class BoardingService {
     public List<Map<String, Object>> findOwnerFeedingLogs(int ownerId, int reservationId) {
         requireOwnerReservation(ownerId, reservationId);
         return boardingRepo.findFeedingLogs(reservationId);
+    }
+
+    public boolean canVetAccessReservation(int vetId, int reservationId) {
+        return boardingRepo.canVetAccessReservation(vetId, reservationId);
+    }
+
+    public boolean reservationExists(int reservationId) {
+        return boardingRepo.reservationExists(reservationId);
     }
 
     private void validateDateRange(LocalDate startDate, LocalDate endDate) {

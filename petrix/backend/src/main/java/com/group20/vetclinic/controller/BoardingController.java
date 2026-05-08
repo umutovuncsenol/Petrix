@@ -61,6 +61,19 @@ public class BoardingController {
         }
     }
 
+    @GetMapping("/vet/{vetId}/active-stays")
+    public ResponseEntity<?> getVetActiveStays(@PathVariable int vetId,
+                                               @RequestHeader(value = "Authorization", required = false) String authHeader) {
+        if (!isAuthorizedVet(authHeader, vetId)) {
+            return forbidden("You are not allowed to view boarding stays for this veterinarian.");
+        }
+        try {
+            return ResponseEntity.ok(boardingService.findActiveStaysForVet(vetId));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+
     @PostMapping("/reservations")
     public ResponseEntity<?> createReservation(@RequestBody Map<String, Object> body) {
         try {
@@ -153,17 +166,38 @@ public class BoardingController {
 
     @PostMapping("/reservations/{reservationId}/feeding-logs")
     public ResponseEntity<?> addFeedingLog(@PathVariable int reservationId,
-                                           @RequestBody Map<String, Object> body) {
+                                           @RequestBody Map<String, Object> body,
+                                           @RequestHeader(value = "Authorization", required = false) String authHeader) {
+        if (!boardingService.reservationExists(reservationId)) {
+            return ResponseEntity.badRequest().body(Map.of("error", "Reservation not found."));
+        }
+        if (!canAccessReservationCare(authHeader, reservationId)) {
+            return forbidden("You are not allowed to access this reservation.");
+        }
         try {
             int feedId = boardingService.addFeedingLog(reservationId, body);
-            return ResponseEntity.ok(Map.of("feedId", feedId));
+            return ResponseEntity.ok(Map.of(
+                    "feedId", feedId,
+                    "message", "Feeding/care log added successfully."
+            ));
+        } catch (SecurityException e) {
+            return forbidden(e.getMessage());
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
         }
     }
 
     @GetMapping("/reservations/{reservationId}/feeding-logs")
-    public ResponseEntity<?> getFeedingLogs(@PathVariable int reservationId) {
+    public ResponseEntity<?> getFeedingLogs(@PathVariable int reservationId,
+                                            @RequestHeader(value = "Authorization", required = false) String authHeader) {
+        if (!boardingService.reservationExists(reservationId)) {
+            return ResponseEntity.badRequest().body(Map.of("error", "Reservation not found."));
+        }
+        if (!canAccessReservationCare(authHeader, reservationId)) {
+            return forbidden("You are not allowed to access this reservation.");
+        }
         try {
             return ResponseEntity.ok(boardingService.findFeedingLogs(reservationId));
         } catch (IllegalArgumentException e) {
@@ -197,6 +231,41 @@ public class BoardingController {
             Integer tokenUserId = jwtUtil.extractUserId(token);
             List<String> roles = jwtUtil.extractRoles(token);
             return tokenUserId != null && tokenUserId == ownerId && roles.contains("OWNER");
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    private boolean isAuthorizedVet(String authHeader, int vetId) {
+        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+            return false;
+        }
+
+        try {
+            String token = authHeader.substring(7);
+            Integer tokenUserId = jwtUtil.extractUserId(token);
+            List<String> roles = jwtUtil.extractRoles(token);
+            return tokenUserId != null && tokenUserId == vetId && roles.contains("VET");
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    private boolean canAccessReservationCare(String authHeader, int reservationId) {
+        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+            return false;
+        }
+
+        try {
+            String token = authHeader.substring(7);
+            Integer tokenUserId = jwtUtil.extractUserId(token);
+            List<String> roles = jwtUtil.extractRoles(token);
+            if (roles.contains("CLINIC_MANAGER") || roles.contains("ADMIN")) {
+                return true;
+            }
+            return tokenUserId != null
+                    && roles.contains("VET")
+                    && boardingService.canVetAccessReservation(tokenUserId, reservationId);
         } catch (Exception e) {
             return false;
         }

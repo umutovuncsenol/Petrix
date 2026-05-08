@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useAuth } from '../context/AuthContext'
-import api, { vetAPI, visitAPI, petAPI, inventoryAPI, vaccinationAPI, appointmentAPI } from '../services/api'
+import api, { vetAPI, visitAPI, petAPI, inventoryAPI, vaccinationAPI, appointmentAPI, boardingAPI } from '../services/api'
 import ReferralModal from '../components/ReferralModal'
 
 function statusBadge(appt) {
@@ -16,9 +16,20 @@ function formatDate(ts) {
   return new Date(ts).toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' })
 }
 
+function formatDateOnly(value) {
+  return value ? new Date(value).toLocaleDateString('en-GB') : '-'
+}
+
+function nowLocalMinute() {
+  const d = new Date()
+  d.setMinutes(d.getMinutes() - d.getTimezoneOffset())
+  return d.toISOString().slice(0, 16)
+}
+
 const emptyDiagForm = { description: '', icdCode: '', severity: 'mild', treatmentNotes: '', followUpRequired: false }
 const emptyRxItems = [{ medId: '', dosage: '', durationDays: 7, quantity: 1 }]
 const emptyInvoiceForm = { consultationFee: '200', treatmentCosts: '0', medicationCosts: '0' }
+const emptyCareLogForm = { feedTime: '', food: '', amount: '', medicationNote: '', notes: '' }
 
 function draftKey(visitId) {
   return `vet_visit_draft_${visitId}`
@@ -62,9 +73,19 @@ export default function VetDashboardPage() {
   const [vaccMsg,        setVaccMsg]        = useState('')
   const [vaccError,      setVaccError]      = useState('')
   const [vaccSubmitting, setVaccSubmitting] = useState(false)
+  const [boardingStays, setBoardingStays] = useState([])
+  const [boardingLoading, setBoardingLoading] = useState(false)
+  const [selectedStay, setSelectedStay] = useState(null)
+  const [feedingLogs, setFeedingLogs] = useState([])
+  const [feedingLogsLoading, setFeedingLogsLoading] = useState(false)
+  const [careLogForm, setCareLogForm] = useState({ ...emptyCareLogForm, feedTime: nowLocalMinute() })
+  const [careSubmitting, setCareSubmitting] = useState(false)
+  const [boardingMsg, setBoardingMsg] = useState('')
+  const [boardingError, setBoardingError] = useState('')
 
   useEffect(() => {
     vetAPI.getAppointments(user.userId).then(r => setAppts(r.data)).finally(() => setLoading(false))
+    loadBoardingStays()
     if (user.branchId) {
       setOverdueLoading(true)
       vaccinationAPI.getOverdue({ branchId: user.branchId, threshold: 0 })
@@ -82,6 +103,59 @@ export default function VetDashboardPage() {
     setDiagForm(emptyDiagForm)
     setRxItems(emptyRxItems)
     setInvoiceForm(emptyInvoiceForm)
+  }
+
+  async function loadBoardingStays() {
+    setBoardingLoading(true)
+    setBoardingError('')
+    try {
+      const res = await boardingAPI.getVetActiveStays(user.userId)
+      setBoardingStays(res.data)
+    } catch (e) {
+      setBoardingError(e.response?.data?.error || 'Failed to load boarding stays.')
+    } finally {
+      setBoardingLoading(false)
+    }
+  }
+
+  async function viewFeedingLogs(stay) {
+    setSelectedStay(stay)
+    setFeedingLogsLoading(true)
+    setBoardingError('')
+    setBoardingMsg('')
+    try {
+      const res = await boardingAPI.getFeedingLogs(stay.reservation_id)
+      setFeedingLogs(res.data)
+      setCareLogForm({ ...emptyCareLogForm, feedTime: nowLocalMinute() })
+    } catch (e) {
+      setFeedingLogs([])
+      setBoardingError(e.response?.data?.error || 'Failed to load feeding/care logs.')
+    } finally {
+      setFeedingLogsLoading(false)
+    }
+  }
+
+  async function addCareLog(e) {
+    e.preventDefault()
+    if (!selectedStay) return
+    if (!careLogForm.feedTime) {
+      setBoardingError('Feed time is required.')
+      return
+    }
+    setCareSubmitting(true)
+    setBoardingError('')
+    setBoardingMsg('')
+    try {
+      const res = await boardingAPI.addFeedingLog(selectedStay.reservation_id, careLogForm)
+      setBoardingMsg(res.data?.message || 'Feeding/care log added successfully.')
+      setCareLogForm({ ...emptyCareLogForm, feedTime: nowLocalMinute() })
+      const logs = await boardingAPI.getFeedingLogs(selectedStay.reservation_id)
+      setFeedingLogs(logs.data)
+    } catch (e) {
+      setBoardingError(e.response?.data?.error || 'Failed to add feeding/care log.')
+    } finally {
+      setCareSubmitting(false)
+    }
   }
 
   async function loadVisitProgress(visit) {
@@ -581,6 +655,121 @@ export default function VetDashboardPage() {
             onSuccess={() => setMsg('Referral created successfully.')}
           />
         )}
+
+        {/* Boarding Care */}
+        <div className="card mt-4">
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="section-title" style={{ margin: 0 }}>Boarding Care</h2>
+            <button className="btn btn-outline btn-sm" onClick={loadBoardingStays} disabled={boardingLoading}>
+              {boardingLoading ? 'Loading...' : 'Refresh'}
+            </button>
+          </div>
+          {boardingMsg && <div className="alert alert-success mb-3">{boardingMsg}</div>}
+          {boardingError && <div className="alert alert-error mb-3">{boardingError}</div>}
+          {boardingLoading
+            ? <div className="spinner" />
+            : boardingStays.length === 0
+            ? <p className="text-sm text-muted">No pets are currently staying at your branch.</p>
+            : (
+              <div className="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Pet</th><th>Owner</th><th>Room</th><th>Branch</th>
+                      <th>Start</th><th>End</th><th>Status</th><th>Special Notes</th><th></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {boardingStays.map(stay => (
+                      <tr key={stay.reservation_id}>
+                        <td className="font-semibold">
+                          {stay.pet_name}
+                          <div className="text-xs text-muted">{stay.species}{stay.breed ? ` · ${stay.breed}` : ''}</div>
+                        </td>
+                        <td>{stay.owner_name}</td>
+                        <td>{stay.room_no}</td>
+                        <td>{stay.branch_name}</td>
+                        <td>{formatDateOnly(stay.start_date)}</td>
+                        <td>{formatDateOnly(stay.end_date)}</td>
+                        <td><span className="badge badge-green">{stay.status}</span></td>
+                        <td className="text-sm">{stay.special_notes || '-'}</td>
+                        <td>
+                          <button className="btn btn-outline btn-sm" onClick={() => viewFeedingLogs(stay)}>
+                            View Logs
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )
+          }
+
+          {selectedStay && (
+            <div className="mt-4" style={{ borderTop: '1px solid var(--gray-200)', paddingTop: '1rem' }}>
+              <h3 className="font-semibold mb-2">
+                Feeding/Care Logs - {selectedStay.pet_name}, room {selectedStay.room_no}
+              </h3>
+              <form onSubmit={addCareLog} className="mb-4">
+                <div className="grid-2">
+                  <div className="form-group">
+                    <label>Feed Time</label>
+                    <input
+                      type="datetime-local"
+                      value={careLogForm.feedTime}
+                      onChange={e => setCareLogForm(f => ({ ...f, feedTime: e.target.value }))}
+                      required
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label>Food</label>
+                    <input value={careLogForm.food} onChange={e => setCareLogForm(f => ({ ...f, food: e.target.value }))} />
+                  </div>
+                  <div className="form-group">
+                    <label>Amount</label>
+                    <input value={careLogForm.amount} onChange={e => setCareLogForm(f => ({ ...f, amount: e.target.value }))} />
+                  </div>
+                  <div className="form-group">
+                    <label>Medication Note</label>
+                    <input value={careLogForm.medicationNote} onChange={e => setCareLogForm(f => ({ ...f, medicationNote: e.target.value }))} />
+                  </div>
+                </div>
+                <div className="form-group">
+                  <label>Notes</label>
+                  <textarea value={careLogForm.notes} onChange={e => setCareLogForm(f => ({ ...f, notes: e.target.value }))} />
+                </div>
+                <button type="submit" className="btn btn-primary" disabled={careSubmitting}>
+                  {careSubmitting ? 'Adding...' : 'Add Feeding/Care Log'}
+                </button>
+              </form>
+
+              {feedingLogsLoading
+                ? <div className="spinner" />
+                : feedingLogs.length === 0
+                ? <p className="text-sm text-muted">No feeding/care logs recorded yet.</p>
+                : (
+                  <div className="table-wrap">
+                    <table>
+                      <thead><tr><th>Time</th><th>Food</th><th>Amount</th><th>Medication</th><th>Notes</th></tr></thead>
+                      <tbody>
+                        {feedingLogs.map(log => (
+                          <tr key={log.feed_id}>
+                            <td>{formatDate(log.feed_time)}</td>
+                            <td>{log.food || '-'}</td>
+                            <td>{log.amount || '-'}</td>
+                            <td>{log.medication_note || '-'}</td>
+                            <td>{log.notes || '-'}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )
+              }
+            </div>
+          )}
+        </div>
 
         {/* Overdue Vaccination Alerts */}
         <div className="card mt-4">
