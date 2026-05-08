@@ -13,6 +13,7 @@ import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 @RestController
 @RequestMapping("/api/appointments")
@@ -92,6 +93,8 @@ public class AppointmentController {
             int id = apptRepo.create(ownerId, petId, vetId, branchId,
                                      startTime, duration, reason);
             return ResponseEntity.ok(Map.of("apptId", id));
+        } catch (org.springframework.dao.DataIntegrityViolationException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", "This time slot is no longer available. Please choose a different time."));
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
         }
@@ -118,7 +121,7 @@ public class AppointmentController {
             String token = authHeader.substring(7);
             Integer tokenUserId = jwtUtil.extractUserId(token);
             List<String> roles = jwtUtil.extractRoles(token);
-            return tokenUserId != null && tokenUserId == ownerId && roles.contains("OWNER");
+            return tokenUserId != null && Objects.equals(tokenUserId, ownerId) && roles.contains("OWNER");
         } catch (Exception e) {
             return false;
         }

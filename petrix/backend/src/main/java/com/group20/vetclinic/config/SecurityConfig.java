@@ -50,6 +50,8 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.POST,   "/api/visits").hasRole("VET")
                 .requestMatchers(HttpMethod.POST,   "/api/visits/*/diagnoses").hasRole("VET")
                 .requestMatchers(HttpMethod.POST,   "/api/visits/*/prescriptions").hasRole("VET")
+                .requestMatchers(HttpMethod.POST,   "/api/visits/*/invoice").hasRole("VET")
+                .requestMatchers(HttpMethod.POST,   "/api/visits/*/referral").hasRole("VET")
                 .requestMatchers(HttpMethod.PUT,    "/api/inventory/restock").hasRole("CLINIC_MANAGER")
                 .requestMatchers(HttpMethod.POST,   "/api/inventory/waste").hasRole("CLINIC_MANAGER")
                 .requestMatchers(HttpMethod.PUT,    "/api/inventory/expire").hasRole("CLINIC_MANAGER")

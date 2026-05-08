@@ -8,7 +8,7 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.Map;
 
 @RestController
-@RequestMapping("/manager")
+@RequestMapping("/api/manager")
 public class ManagerController {
 
     @GetMapping("/dashboard")

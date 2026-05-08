@@ -117,7 +117,7 @@ CREATE TABLE IF NOT EXISTS STOCK_BATCH (
 CREATE TABLE IF NOT EXISTS APPOINTMENT (
     appt_id    SERIAL PRIMARY KEY,
     owner_id   INTEGER NOT NULL REFERENCES OWNER(owner_id),
-    pet_id     INTEGER NOT NULL REFERENCES PET(pet_id),
+    pet_id     INTEGER NOT NULL REFERENCES PET(pet_id) ON DELETE CASCADE,
     vet_id     INTEGER NOT NULL REFERENCES VETERINARIAN(vet_id),
     branch_id  INTEGER NOT NULL REFERENCES BRANCH(branch_id),
     start_time TIMESTAMP NOT NULL,
@@ -340,7 +340,7 @@ FROM PET p
 JOIN OWNER o       ON p.owner_id   = o.owner_id
 JOIN APPOINTMENT a ON a.owner_id   = o.owner_id AND a.pet_id = p.pet_id
 JOIN VISIT v       ON v.appt_id    = a.appt_id
-JOIN DIAGNOSIS d   ON d.visit_id   = v.visit_id
+LEFT JOIN DIAGNOSIS d   ON d.visit_id   = v.visit_id
 JOIN VETERINARIAN vet ON a.vet_id  = vet.vet_id
 JOIN BRANCH b      ON a.branch_id  = b.branch_id
 LEFT JOIN INVOICE i ON i.visit_id  = v.visit_id;
@@ -444,7 +444,10 @@ FROM (VALUES
 ('Samsun - Ilkadim',       'Kökçüoğlu Mah. Kazımpaşa Cad. No:18, İlkadım/Samsun',      '+90 362 600 0002', 'ilkadim@petrix.com',        'Mon-Fri 08:00-19:00, Sat 09:00-17:00'),
 -- Trabzon (2)
 ('Trabzon - Akcaabat',     'Söğütlü Mah. Atatürk Cad. No:36, Akçaabat/Trabzon',         '+90 462 500 0001', 'akcaabat@petrix.com',       'Mon-Fri 08:00-19:00, Sat 09:00-17:00'),
-('Trabzon - Ortahisar',    'Kemerkaya Mah. Uzun Sok. No:10, Ortahisar/Trabzon',          '+90 462 500 0002', 'ortahisar@petrix.com',      'Mon-Fri 08:00-19:00, Sat 09:00-17:00')
+('Trabzon - Ortahisar',    'Kemerkaya Mah. Uzun Sok. No:10, Ortahisar/Trabzon',          '+90 462 500 0002', 'ortahisar@petrix.com',      'Mon-Fri 08:00-19:00, Sat 09:00-17:00'),
+-- Diyarbakir (2)
+('Diyarbakir - Baglar',    'Baglar Mah. Elazig Cad. No:5, Baglar/Diyarbakir',             '+90 412 100 0001', 'baglar@petrix.com',          'Mon-Fri 08:00-19:00, Sat 09:00-16:00'),
+('Diyarbakir - Kayapinar', 'Kayapinar Mah. Ataturk Bulvari No:22, Kayapinar/Diyarbakir',  '+90 412 100 0002', 'kayapinar@petrix.com',       'Mon-Fri 08:00-19:00, Sat 09:00-16:00')
 ) AS v(name, address, phone, email, working_hours)
 WHERE NOT EXISTS (
     SELECT 1 FROM BRANCH b WHERE b.name = v.name
