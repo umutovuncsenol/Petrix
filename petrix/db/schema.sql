@@ -452,7 +452,7 @@ WHERE NOT EXISTS (
 
 INSERT INTO MEMBERSHIP_PLAN (name, monthly_fee, perks_description) VALUES
     ('Basic',  199, '5% discount on consultation • Standard appointment slots • Email reminders'),
-    ('Silver', 399, '10% discount on consultation • Priority appointment slots • 1 free boarding night/month • SMS + email reminders'),
+    ('Silver', 399, '10% discount on consultation • Priority appointment slots • 1 free boarding night/month • email reminders'),
     ('Gold',   699, '20% discount on consultation • VIP appointment slots • 3 free boarding nights/month • Dedicated vet line')
 ON CONFLICT DO NOTHING;
 

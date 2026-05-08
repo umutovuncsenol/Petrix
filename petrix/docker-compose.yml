@@ -25,6 +25,9 @@ services:
     ports:
       - "8080:8080"
     environment:
+      MAIL_USERNAME: petrix.yourvet@gmail.com
+      MAIL_PASSWORD: ybhy ncci wjxs klil
+      MAIL_ENABLED: "true"
       SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/vetclinic
       SPRING_DATASOURCE_USERNAME: vetuser
       SPRING_DATASOURCE_PASSWORD: vetpass
