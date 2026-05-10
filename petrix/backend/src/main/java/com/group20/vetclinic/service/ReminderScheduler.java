@@ -77,4 +77,17 @@ public class ReminderScheduler {
     private void markReminderSent(int apptId) {
         jdbc.update("UPDATE APPOINTMENT SET reminder_sent = TRUE WHERE appt_id = ?", apptId);
     }
+
+    @Scheduled(cron = "0 5 0 * * *")
+    public void markOverdueVaccinations() {
+        int updated = jdbc.update("""
+            UPDATE VACCINATION_RECORD
+            SET status = 'overdue'
+            WHERE status = 'upcoming'
+              AND next_due_date < CURRENT_DATE
+            """);
+        if (updated > 0) {
+            log.info("Marked {} vaccination record(s) as overdue", updated);
+        }
+    }
 }

@@ -1,7 +1,7 @@
 package com.group20.vetclinic.config;
 
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -16,12 +16,15 @@ import org.springframework.stereotype.Component;
  * directly via JdbcTemplate, which hands the full string to the JDBC driver in
  * one shot — no splitting, no truncation.
  */
-@Slf4j
 @Component
-@RequiredArgsConstructor
 public class TriggerInitializer implements ApplicationRunner {
 
+    private static final Logger log = LoggerFactory.getLogger(TriggerInitializer.class);
     private final JdbcTemplate jdbc;
+
+    public TriggerInitializer(JdbcTemplate jdbc) {
+        this.jdbc = jdbc;
+    }
 
     @Override
     public void run(ApplicationArguments args) {
@@ -53,5 +56,36 @@ public class TriggerInitializer implements ApplicationRunner {
         );
 
         log.info("trg_low_stock_check trigger applied successfully.");
+
+        // ── Boarding reservation → room status trigger ──────────────────────
+        log.info("Applying trg_boarding_room_status trigger...");
+
+        jdbc.execute(
+            "CREATE OR REPLACE FUNCTION release_room_on_reservation_end() " +
+            "RETURNS TRIGGER AS $$ " +
+            "BEGIN " +
+            "    IF NEW.status IN ('completed', 'cancelled') " +
+            "       AND OLD.status = 'active' THEN " +
+            "        UPDATE ROOM_CAGE " +
+            "        SET status = 'available' " +
+            "        WHERE room_id = NEW.room_id; " +
+            "    END IF; " +
+            "    RETURN NEW; " +
+            "END; " +
+            "$$ LANGUAGE plpgsql"
+        );
+
+        jdbc.execute(
+            "DROP TRIGGER IF EXISTS trg_boarding_room_status ON BOARDING_RESERVATION"
+        );
+
+        jdbc.execute(
+            "CREATE TRIGGER trg_boarding_room_status " +
+            "AFTER UPDATE OF status ON BOARDING_RESERVATION " +
+            "FOR EACH ROW " +
+            "EXECUTE FUNCTION release_room_on_reservation_end()"
+        );
+
+        log.info("trg_boarding_room_status trigger applied successfully.");
     }
 }
