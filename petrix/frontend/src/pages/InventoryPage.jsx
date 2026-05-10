@@ -4,12 +4,14 @@ import {
   getInventory,
   getInventoryFiltered,
   getLowStock,
+  deleteMedication,
 } from '../api/inventoryApi'
 import FilterBar from '../components/inventory/FilterBar'
 import InventoryTable from '../components/inventory/InventoryTable'
 import LowStockAlerts from '../components/inventory/LowStockAlerts'
 import RestockModal from '../components/inventory/RestockModal'
 import WasteModal from '../components/inventory/WasteModal'
+import AddMedicationModal from '../components/inventory/AddMedicationModal'
 import './InventoryPage.css'
 
 function getErrorMessage(err) {
@@ -29,6 +31,7 @@ export default function InventoryPage() {
   const [filters, setFilters] = useState({ name: '', category: '', expirationStatus: '' })
   const [selectedItem, setSelectedItem] = useState(null)
   const [modalType, setModalType] = useState(null)
+  const [showAddModal, setShowAddModal] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
 
@@ -100,6 +103,16 @@ export default function InventoryPage() {
     fetchInventoryData()
   }
 
+  async function handleDeleteMedication(item) {
+    setError(null)
+    try {
+      await deleteMedication(item.medId, token)
+      fetchInventoryData()
+    } catch (err) {
+      setError(getErrorMessage(err))
+    }
+  }
+
   return (
     <div className="page">
       <div className="container inventory-page">
@@ -121,7 +134,16 @@ export default function InventoryPage() {
             <LowStockAlerts alerts={lowStockAlerts} />
 
             <div className="card mb-4">
-              <h2 className="section-title">Filters</h2>
+              <div className="flex items-center justify-between mb-3">
+                <h2 className="section-title">Filters</h2>
+                <button
+                  type="button"
+                  className="btn btn-primary btn-sm"
+                  onClick={() => setShowAddModal(true)}
+                >
+                  + Add Medication
+                </button>
+              </div>
               <FilterBar filters={filters} onChange={handleFilterChange} onSearch={handleSearch} />
             </div>
 
@@ -140,9 +162,18 @@ export default function InventoryPage() {
                   items={inventory}
                   onRestockClick={(item) => openModal('restock', item)}
                   onExpireClick={(item) => openModal('waste', item)}
+                  onDeleteClick={handleDeleteMedication}
                 />
               )}
             </div>
+
+            {showAddModal && (
+              <AddMedicationModal
+                token={token}
+                onClose={() => setShowAddModal(false)}
+                onSuccess={() => { setShowAddModal(false); fetchInventoryData() }}
+              />
+            )}
 
             {modalType === 'restock' && selectedItem && (
               <RestockModal

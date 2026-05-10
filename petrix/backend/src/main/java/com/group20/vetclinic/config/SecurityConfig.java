@@ -62,6 +62,8 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.PUT,    "/api/inventory/restock").hasRole("CLINIC_MANAGER")
                 .requestMatchers(HttpMethod.POST,   "/api/inventory/waste").hasRole("CLINIC_MANAGER")
                 .requestMatchers(HttpMethod.PUT,    "/api/inventory/expire").hasRole("CLINIC_MANAGER")
+                .requestMatchers(HttpMethod.POST,   "/api/inventory/medications").hasRole("CLINIC_MANAGER")
+                .requestMatchers(HttpMethod.DELETE, "/api/inventory/medications/**").hasRole("CLINIC_MANAGER")
                 .anyRequest().authenticated()
             )
             .authenticationProvider(authenticationProvider())

@@ -102,6 +102,8 @@ textarea { resize: vertical; min-height: 80px; }
 .btn-danger   { background: var(--red-500); color: #fff; }
 .btn-ghost    { background: transparent; color: var(--gray-600); }
 .btn-ghost:hover { background: var(--gray-100); }
+.btn-secondary { background: var(--gray-100); color: var(--gray-700); border: 1.5px solid var(--gray-200); }
+.btn-secondary:hover:not(:disabled) { background: var(--gray-200); }
 .btn-sm       { padding: .3rem .85rem; font-size: .82rem; }
 .btn-full     { width: 100%; }
 

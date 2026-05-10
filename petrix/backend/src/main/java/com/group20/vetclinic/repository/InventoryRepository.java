@@ -1,5 +1,6 @@
 package com.group20.vetclinic.repository;
 
+import com.group20.vetclinic.dto.AddMedicationRequest;
 import com.group20.vetclinic.model.Medication;
 import lombok.RequiredArgsConstructor;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -272,6 +273,46 @@ public class InventoryRepository {
         report.put("branchWasteStats", branchWasteStats);
         report.put("costBreakdown", costBreakdown.isEmpty() ? null : costBreakdown.get(0));
         return report;
+    }
+
+    @Transactional
+    public int addMedication(AddMedicationRequest req) {
+        int medId = jdbc.queryForObject(
+            "INSERT INTO MEDICATION (name, form, unit, description, is_vaccine) VALUES (?, ?, ?, ?, ?) RETURNING med_id",
+            Integer.class,
+            req.getName().trim(),
+            req.getForm() != null ? req.getForm().trim() : null,
+            req.getUnit() != null ? req.getUnit().trim() : null,
+            req.getDescription() != null ? req.getDescription().trim() : null,
+            req.isVaccine()
+        );
+        if (req.isVaccine()) {
+            jdbc.update(
+                "INSERT INTO VACCINATION (med_id, target_species, frequency_months) VALUES (?, ?, ?)",
+                medId, req.getTargetSpecies(), req.getFrequencyMonths()
+            );
+        }
+        return medId;
+    }
+
+    @Transactional
+    public void deleteMedication(int medId) {
+        int prescriptionRefs = jdbc.queryForObject(
+            "SELECT COUNT(*) FROM CONTAINS WHERE med_id = ?", Integer.class, medId);
+        int vaccinationRefs = jdbc.queryForObject(
+            "SELECT COUNT(*) FROM VACCINATION_RECORD WHERE med_id = ?", Integer.class, medId);
+
+        if (prescriptionRefs > 0 || vaccinationRefs > 0) {
+            throw new IllegalStateException(
+                "Cannot delete: referenced in " + prescriptionRefs + " prescription(s) and " + vaccinationRefs + " vaccination record(s)."
+            );
+        }
+
+        jdbc.update("DELETE FROM WASTE_TRACKING WHERE med_id = ?", medId);
+        jdbc.update("DELETE FROM STOCK_BATCH WHERE med_id = ?", medId);
+        jdbc.update("DELETE FROM STOCKED_AS WHERE med_id = ?", medId);
+        jdbc.update("DELETE FROM VACCINATION WHERE med_id = ?", medId);
+        jdbc.update("DELETE FROM MEDICATION WHERE med_id = ?", medId);
     }
 
     private Date toSqlDate(String value) {

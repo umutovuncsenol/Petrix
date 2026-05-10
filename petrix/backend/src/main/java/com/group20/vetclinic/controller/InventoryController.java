@@ -1,5 +1,6 @@
 package com.group20.vetclinic.controller;
 
+import com.group20.vetclinic.dto.AddMedicationRequest;
 import com.group20.vetclinic.dto.ExpireRequest;
 import com.group20.vetclinic.dto.RestockRequest;
 import com.group20.vetclinic.dto.WasteRequest;
@@ -97,6 +98,26 @@ public class InventoryController {
     @GetMapping("/reports/branch/{branchId}")
     public Map<String, Object> getBranchReport(@PathVariable int branchId) {
         return inventoryRepo.getReport(branchId);
+    }
+
+    @PostMapping("/medications")
+    public ResponseEntity<?> addMedication(@RequestBody AddMedicationRequest request) {
+        try {
+            int medId = inventoryRepo.addMedication(request);
+            return ResponseEntity.ok(Map.of("medId", medId));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+
+    @DeleteMapping("/medications/{id}")
+    public ResponseEntity<String> deleteMedication(@PathVariable int id) {
+        try {
+            inventoryRepo.deleteMedication(id);
+            return ResponseEntity.ok("Medication deleted successfully");
+        } catch (IllegalStateException e) {
+            return ResponseEntity.status(409).body(e.getMessage());
+        }
     }
 
 }

@@ -30,7 +30,7 @@ function formatDate(value) {
   return new Date(value).toLocaleDateString()
 }
 
-export default function InventoryTable({ items, onRestockClick, onExpireClick }) {
+export default function InventoryTable({ items, onRestockClick, onExpireClick, onDeleteClick }) {
   if (!items || items.length === 0) {
     return <p className="text-sm text-muted">No medications found.</p>
   }
@@ -85,6 +85,13 @@ export default function InventoryTable({ items, onRestockClick, onExpireClick })
                     onClick={() => onExpireClick(item)}
                   >
                     Expire/Waste
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-secondary btn-sm"
+                    onClick={() => onDeleteClick(item)}
+                  >
+                    Delete
                   </button>
                 </div>
               </td>

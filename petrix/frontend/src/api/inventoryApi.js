@@ -31,3 +31,9 @@ export const logWaste = (data, token) =>
 
 export const getReport = (branchId, token) =>
   axios.get(`/api/inventory/reports/branch/${branchId}`, { headers: authHeaders(token) })
+
+export const addMedication = (data, token) =>
+  axios.post('/api/inventory/medications', data, { headers: authHeaders(token) })
+
+export const deleteMedication = (medId, token) =>
+  axios.delete(`/api/inventory/medications/${medId}`, { headers: authHeaders(token) })
