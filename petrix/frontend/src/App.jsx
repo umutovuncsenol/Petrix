@@ -67,7 +67,7 @@ function AppRoutes() {
           <ProtectedRoute allowedRoles={['VET']}><VetDashboardPage /></ProtectedRoute>
         } />
         <Route path="/waste-log" element={
-          <ProtectedRoute allowedRoles={['CLINIC_MANAGER']}><WasteLogPage /></ProtectedRoute>
+          <ProtectedRoute allowedRoles={['CLINIC_MANAGER', 'VET']}><WasteLogPage /></ProtectedRoute>
         } />
         <Route path="/reports" element={
           <ProtectedRoute allowedRoles={['CLINIC_MANAGER']}><ReportsPage /></ProtectedRoute>
