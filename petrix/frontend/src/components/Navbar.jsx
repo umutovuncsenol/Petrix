@@ -49,6 +49,7 @@ export default function Navbar() {
             {user.role === 'VET' && (
               <>
                 <Link to="/vet-dashboard" className="text-sm font-semibold" style={{ color: 'var(--gray-600)' }}>Dashboard</Link>
+                <Link to="/waste-log"     className="text-sm font-semibold" style={{ color: 'var(--gray-600)' }}>Waste Log</Link>
               </>
             )}
             {user.role === 'CLINIC_MANAGER' && (
