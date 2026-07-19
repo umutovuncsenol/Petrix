@@ -49,6 +49,8 @@ The backend follows a controller–service–repository structure. Spring Securi
 
 ```bash
 cd petrix
+cp .env.example .env
+# Replace the placeholder values in .env
 docker compose up --build
 ```
 
@@ -66,7 +68,8 @@ docker compose down
 
 ## Local Development
 
-Start a PostgreSQL instance and configure the backend connection, then run:
+Start a PostgreSQL instance and set `DB_URL`, `DB_USERNAME`, `DB_PASSWORD`, and
+`JWT_SECRET` in your shell or IDE, then run:
 
 ```bash
 cd petrix/backend
@@ -81,7 +84,9 @@ npm install
 npm run dev
 ```
 
-Use environment variables for database and mail credentials outside local development. Never commit production secrets.
+Mail delivery is optional and uses `MAIL_USERNAME`, `MAIL_PASSWORD`, and
+`MAIL_ENABLED`. The local `.env` file is ignored by Git; `.env.example` contains
+only placeholders.
 
 ## My Contributions
 

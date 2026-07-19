@@ -4,16 +4,16 @@ services:
     container_name: vetclinic_db
     restart: unless-stopped
     environment:
-      POSTGRES_DB: vetclinic
-      POSTGRES_USER: vetuser
-      POSTGRES_PASSWORD: vetpass
+      POSTGRES_DB: ${DB_NAME:-vetclinic}
+      POSTGRES_USER: ${DB_USERNAME}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
     ports:
       - "5433:5432"
     volumes:
       - vetclinic_data:/var/lib/postgresql/data
       - ./db/schema.sql:/docker-entrypoint-initdb.d/schema.sql
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U vetuser -d vetclinic"]
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -25,12 +25,13 @@ services:
     ports:
       - "8080:8080"
     environment:
-      MAIL_USERNAME: petrix.yourvet@gmail.com
-      MAIL_PASSWORD: ybhy ncci wjxs klil
-      MAIL_ENABLED: "true"
-      SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/vetclinic
-      SPRING_DATASOURCE_USERNAME: vetuser
-      SPRING_DATASOURCE_PASSWORD: vetpass
+      DB_URL: jdbc:postgresql://db:5432/${DB_NAME:-vetclinic}
+      DB_USERNAME: ${DB_USERNAME}
+      DB_PASSWORD: ${DB_PASSWORD}
+      JWT_SECRET: ${JWT_SECRET}
+      MAIL_USERNAME: ${MAIL_USERNAME:-}
+      MAIL_PASSWORD: ${MAIL_PASSWORD:-}
+      MAIL_ENABLED: ${MAIL_ENABLED:-false}
     depends_on:
       db:
         condition: service_healthy
